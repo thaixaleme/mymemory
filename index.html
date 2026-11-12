@@ -23,6 +23,13 @@
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+/* Nền: vệt màu hồng / tím nhạt */
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(circle at 10% -5%,#FFD1DC 0,transparent 45%),radial-gradient(circle at 105% 35%,#EBD9FF 0,transparent 40%),radial-gradient(circle at 0% 100%,#FFE7D1 0,transparent 40%),var(--bg)}
+@media (prefers-color-scheme:dark){body::before{background:radial-gradient(circle at 10% -5%,#4C0519 0,transparent 45%),radial-gradient(circle at 105% 35%,#2E1065 0,transparent 40%),var(--bg)}}
+:root{--sh:0 3px 12px -5px rgba(190,18,60,.22)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
 button{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:transparent}
 input,select,textarea{font:inherit;font-size:16px;color:var(--text)}
 .muted{color:var(--muted);font-size:14px}
@@ -31,12 +38,17 @@ input,select,textarea{font:inherit;font-size:16px;color:var(--text)}
 
 /* ===== Header + nội dung + thanh tab dưới ===== */
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
-  background:linear-gradient(180deg,#F43F5E,var(--acc));color:#fff;box-shadow:0 4px 14px -6px rgba(190,18,60,.6)}
-header img{width:30px;height:30px;border-radius:8px}
+  background:linear-gradient(120deg,#FB7185,#E11D48 55%,#C026D3);color:#fff;box-shadow:0 4px 16px -6px rgba(190,18,60,.6)}
+header img{width:32px;height:32px;border-radius:9px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
 header h1{flex:1;margin:0;font-size:20px;font-weight:800}
 header .hbtn{background:rgba(255,255,255,.22);border:0;color:#fff;height:36px;min-width:36px;border-radius:10px;font-size:17px;padding:0 10px}
 main{max-width:760px;margin:0 auto;padding:12px 12px calc(90px + env(safe-area-inset-bottom))}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+@media (prefers-color-scheme:dark){nav{background:rgba(38,23,29,.85)}}
+nav button.on::before{content:'';position:absolute;top:0;left:32%;right:32%;height:3px;border-radius:0 0 3px 3px;background:var(--acc)}
+nav button span{transition:transform .2s}
+nav button.on span{transform:scale(1.12)}
 nav button{flex:1;border:0;background:none;padding:7px 0 6px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px}
 nav button span{font-size:22px;line-height:1.1;filter:grayscale(1);opacity:.7}
 nav button.on{color:var(--acc);font-weight:700}
@@ -46,41 +58,56 @@ nav button i{font-style:normal}
 nav .dot{position:absolute;top:3px;left:calc(50% + 8px);background:var(--today);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:0 5px;min-width:16px}
 
 h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:6px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-.btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;font-weight:700}
-.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--sh)}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;font-weight:700;transition:transform .12s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(120deg,#F43F5E,#E11D48);border-color:transparent;color:#fff;box-shadow:0 4px 12px -4px rgba(225,29,72,.6)}
 .btn.danger{color:var(--danger)}
 .btn.block{display:block;width:100%;margin-top:10px}
 .btn.small{padding:7px 12px;font-size:14px}
 
 /* Thẻ "hôm nay" ở trên cùng */
-.todaybox{background:linear-gradient(135deg,#FFE4E6,#FCE7F3);border:0;color:#3B0A1A}
-@media (prefers-color-scheme:dark){.todaybox{background:linear-gradient(135deg,#4C0519,#3B0764);color:#FCE7F3}}
-.todaybox .big{font-size:20px;font-weight:800}
-.banner{margin-top:10px;border-radius:14px;padding:12px 14px;font-weight:700}
-.banner.today{background:var(--today);color:#fff}
+.todaybox{position:relative;overflow:hidden;background:linear-gradient(135deg,#F43F5E,#D946EF 60%,#8B5CF6);border:0;color:#fff;padding:16px 16px 14px;
+  box-shadow:0 8px 22px -10px rgba(190,18,60,.7)}
+.todaybox::after{content:'🌙';position:absolute;right:-4px;top:-16px;font-size:90px;opacity:.2;transform:rotate(-15deg)}
+.todaybox .big{font-size:21px;font-weight:800}
+.todaybox .lunar{display:inline-block;margin-top:6px;background:rgba(255,255,255,.2);border-radius:20px;padding:2px 10px;font-size:14px}
+.banner{margin-top:10px;border-radius:14px;padding:12px 14px;font-weight:700;animation:fadeUp .35s ease-out both}
+.banner.today{background:linear-gradient(120deg,#EF4444,#F97316);color:#fff;animation:fadeUp .35s ease-out both,pulse 2.2s 1s infinite}
 .banner.soon{background:var(--near-bg);color:var(--text);border:1px solid var(--near)}
 .banner.none{background:var(--card);border:1px dashed var(--line);color:var(--muted);font-weight:500}
 
 /* Thẻ 1 ngày cần nhớ */
-.ev{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
-.ev.today{background:var(--today-bg);border-color:var(--today)}
-.ev.near{background:var(--near-bg);border-color:var(--near)}
-.ev.soon{background:var(--soon-bg);border-color:var(--soon)}
-.ev-date{flex:0 0 54px;text-align:center;line-height:1.1}
-.ev-date b{display:block;font-size:24px}
-.ev-date span,.ev-date small{display:block;font-size:12px;color:var(--muted)}
+.ev{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:16px;padding:10px 10px 10px 8px;margin:9px 0;
+  box-shadow:var(--sh);animation:fadeUp .35s ease-out both;transition:transform .12s}
+.ev:active{transform:scale(.98)}
+.ev.today{background:linear-gradient(100deg,var(--today-bg),var(--card));border-color:var(--today)}
+.ev.near{background:linear-gradient(100deg,var(--near-bg),var(--card));border-color:var(--near)}
+.ev.soon{background:linear-gradient(100deg,var(--soon-bg),var(--card));border-color:var(--soon)}
+.ev-date{flex:0 0 42px;text-align:center;line-height:1.1}
+.ev-date b{display:block;font-size:22px}
+.ev-date span,.ev-date small{display:block;font-size:11px;color:var(--muted)}
+.ev-av{position:relative;flex:0 0 44px;height:44px}
+.ev-av .avatar{width:44px;height:44px;flex:none;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.ev-av .ico{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:linear-gradient(135deg,#FFE4E6,#F3E8FF)}
+@media (prefers-color-scheme:dark){.ev-av .ico{background:linear-gradient(135deg,#4C0519,#2E1065)}}
+.ev-av .bd{position:absolute;right:-5px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--card);font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .ev-body{flex:1;min-width:0}
-.ev-t{font-weight:700}
-.ev-i{font-size:13px;color:var(--muted);margin-top:2px}
-.ev-n{flex:0 0 auto;font-size:13px;font-weight:800;text-align:right;white-space:nowrap}
-.ev.today .ev-n{color:var(--today)}
-.ev.near .ev-n{color:var(--near)}
-.ev.soon .ev-n{color:#A16207}
-@media (prefers-color-scheme:dark){.ev.soon .ev-n{color:var(--soon)}}
+.ev-t{font-weight:700;line-height:1.3}
+.ev-i{font-size:12px;color:var(--muted);margin-top:2px}
+.ev-n{flex:0 0 auto;font-size:12px;font-weight:800;white-space:nowrap;border-radius:20px;padding:4px 9px;background:var(--line);color:var(--muted)}
+.ev.today .ev-n{background:var(--today);color:#fff}
+.ev.near .ev-n{background:var(--near);color:#fff}
+.ev.soon .ev-n{background:var(--soon);color:#422006}
 
 /* Danh sách người / ngày lễ */
-.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0;box-shadow:var(--sh);animation:fadeUp .3s ease-out both}
+.ico-s{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;background:linear-gradient(135deg,#FFE4E6,#F3E8FF)}
+@media (prefers-color-scheme:dark){.ico-s{background:linear-gradient(135deg,#4C0519,#2E1065)}}
+.icons{display:flex;flex-wrap:wrap;gap:6px}
+.icons button{width:42px;height:42px;font-size:22px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.icons button.on{border:2px solid var(--acc);background:var(--today-bg)}
+.grp{box-shadow:var(--sh)}
 .row .grow{flex:1;min-width:0}
 .row .t{font-weight:700}
 .row .s{font-size:13px;color:var(--muted)}
@@ -90,6 +117,37 @@ h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;dis
 .avatar{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:var(--acc)}
 .avatar.dead{background:#6B7280}
 .search{display:block;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.avatar.m{background:#3B82F6}
+.avatar.f{background:#EC4899}
+img.avatar{object-fit:cover;width:40px;background:var(--line)}
+img.avatar.dead{filter:grayscale(1)}
+.avatar.big{flex:0 0 76px;width:76px;height:76px;font-size:30px}
+
+/* Sơ đồ gia đình: mỗi cấp 1 hàng, cách nhau --tp (150px) */
+.tree-wrap{position:relative;margin:8px -12px 10px}
+.tree-lv{position:absolute;left:0;right:0;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;pointer-events:none;z-index:2}
+.tree-lv span{font-size:12px;font-weight:700;color:var(--muted);background:var(--bg);padding:1px 6px;border-radius:6px}
+.tree-lv button{pointer-events:auto;font-size:12px;font-weight:700;border:1px dashed var(--acc);color:var(--acc);background:var(--bg);border-radius:8px;padding:2px 10px}
+.tree-sc{height:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.tree{display:flex;justify-content:center;align-items:flex-start;gap:12px;width:max-content;min-width:100%;padding:0 12px}
+.tu{display:flex;flex-direction:column;align-items:center}
+.uc{height:84px;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:3px 2px}
+.uc.me{border:2px solid #3B82F6}
+.uc .hrt{color:var(--acc);font-size:11px}
+.tp{width:64px;text-align:center;cursor:pointer}
+.tp .avatar{width:40px;height:40px;margin:0 auto 2px;font-size:16px}
+.tp .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.tp .st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.tp .st .today{color:var(--today);font-weight:700}
+.tp .st .near{color:var(--near);font-weight:700}
+.tp .st .soon{color:#A16207;font-weight:700}
+.vl{width:0;border-left:1.5px solid var(--muted)}
+.kids{display:flex;align-items:flex-start}
+.kid{position:relative;display:flex;flex-direction:column;align-items:center;padding:0 6px}
+.kid::before,.kid::after{content:'';position:absolute;top:0;width:50%;border-top:1.5px solid var(--muted)}
+.kid::before{left:0}
+.kid::after{right:0}
+.kid:first-child::before,.kid:last-child::after{display:none}
 
 /* Công tắc bật/tắt */
 .sw{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:50px;height:30px;border-radius:15px;background:#D1D5DB;position:relative;transition:.2s;margin:0;cursor:pointer}
@@ -371,6 +429,11 @@ const DEF = {
   i: { s: 'Còn {n} ngày là đến {ten}', t: 'Hôm nay là {ten}', l: '{ten}' }
 };
 const ICON = { b: '🎂', d: '🕯️', i: '🎉' };
+// icon của các ngày lễ có sẵn, và danh sách icon để chọn khi thêm/sửa ngày
+const PICON = { p_tet: '🧧', p_valen: '🌹', p_83: '💐', p_white: '🍬', p_me: '👩', p_16: '🧸', p_cha: '👨', p_vulan: '🪷', p_trungthu: '🏮',
+  p_2010: '🌷', p_2011: '📚', p_noel: '🎄', p_tao: '🐟', p_tetdl: '🎆', p_ramgieng: '🌕', p_hung: '🏯', p_doanngo: '🥟' };
+const ICONS = ['🎉', '🎂', '💍', '❤️', '🌹', '💐', '🌷', '🎁', '🧧', '🏮', '🎄', '🎆', '🌕', '🪷', '👩', '👨', '🧸', '📚', '✈️', '🏠', '⭐', '🙏'];
+const itemIcon = it => it.icon || PICON[it.id] || '🎉';
 function fill(tpl, v) {
   return ucFirst(tpl.replace(/\{(n|ten|qh|tuoi|nam|ngay|am)\}/g, (_, k) => v[k] == null ? '' : String(v[k])).replace(/\s{2,}/g, ' ').trim());
 }
@@ -389,7 +452,7 @@ function sources(all) {
 function soonOf(r) { return r.soon != null ? r.soon : data.settings.soon; }
 function varsOf(src, o, days) {
   const [d, m, y] = jdToDate(o.jd), L = lunarOf(o.jd);
-  const v = { n: days, ten: src.p ? src.p.name : src.it.name, qh: src.p ? lcFirst(src.p.rel || '') : '', ngay: `${d}/${m}`, am: `${L[0]}/${L[1]}` };
+  const v = { n: days, ten: src.p ? (src.p.me && src.p.name === 'Tôi' ? 'tôi' : src.p.name) : src.it.name, qh: src.p ? lcFirst(src.p.rel || '') : '', ngay: `${d}/${m}`, am: `${L[0]}/${L[1]}` };
   if (src.dt.y) {
     const k = o.yr - src.dt.y;
     if (src.kind === 'b' && k > 0) v.tuoi = k;
@@ -516,6 +579,11 @@ async function unlockBio() {
    ===================================================================== */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const newRemind = (on = true) => ({ on, soon: null, s: '', t: '' });
+// lv: cấp trong sơ đồ (chỉ người đứng riêng), par: là con của (id), sp: là vợ/chồng của (id)
+function newPerson() {
+  return { id: uid(), name: '', rel: '', note: '', sex: '', photo: '', me: false, birth: null, br: newRemind(true),
+    dead: false, death: null, dr: newRemind(true), lv: null, par: null, sp: null, ord: null };
+}
 function presets() {
   const P = (id, name, date, on, s = '', t = '') => ({ id, name, date: Object.assign({ y: null }, date), note: '', r: { on, soon: null, s, t } });
   return [
@@ -542,8 +610,9 @@ function defaultData() {
   return fixData({ v: 1, settings: {}, people: [], items: presets() });
 }
 function fixData(d) {   // bổ sung các mục cài đặt còn thiếu (khi app được nâng cấp)
-  d.settings = Object.assign({ soon: 7, lockMin: 1, badge: false, icsYears: 10, icsTime: '07:00', icsShort: true }, d.settings || {});
-  d.people = d.people || []; d.items = d.items || [];
+  d.settings = Object.assign({ soon: 7, lockMin: 1, badge: false, icsYears: 10, icsTime: '07:00', icsShort: true, treeRows: 3 }, d.settings || {});
+  d.people = (d.people || []).map(p => Object.assign(newPerson(), p, { dead: !!p.death }));   // đã mất = có ngày mất
+  d.items = d.items || [];
   return d;
 }
 
@@ -672,11 +741,13 @@ document.addEventListener('visibilitychange', () => {
 /* =====================================================================
    GIAO DIỆN
    ===================================================================== */
-let tab = 'up';
-try { tab = JSON.parse(localStorage.getItem(LS_UI)).tab || 'up'; } catch (e) {}
+const ui = { tab: 'up', pv: 'list' };   // tab đang mở, tab Người thân: danh sách / sơ đồ
+try { Object.assign(ui, JSON.parse(localStorage.getItem(LS_UI)) || {}); } catch (e) {}
+let tab = ui.tab;
+function saveUi() { ui.tab = tab; try { localStorage.setItem(LS_UI, JSON.stringify(ui)); } catch (e) {} }
 let toastT = 0;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; try { localStorage.setItem(LS_UI, JSON.stringify({ tab })); } catch (e) {} render(); window.scrollTo(0, 0); });
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; saveUi(); render(); window.scrollTo(0, 0); });
 $('#btnLock').onclick = () => lock();
 $('#btnAdd').onclick = () => tab === 'items' ? editItem(null) : editPerson(null);
 
@@ -694,21 +765,29 @@ function render() {
   else if (tab === 'items') v.innerHTML = viewItems(today);
   else v.innerHTML = viewSet();
   if (tab === 'set') bindSet();
+  const sc = $('.tree-sc'), me = $('.uc.me');
+  if (sc && me) {   // sơ đồ rộng hơn màn hình: cuộn ngang tới cặp "Tôi"
+    const a = sc.getBoundingClientRect(), b = me.getBoundingClientRect();
+    sc.scrollLeft += b.left + b.width / 2 - (a.left + a.width / 2);
+  }
   const q = $('#q');
   if (q) q.oninput = () => filterPeople(q.value);
 }
-function evCard(o) {
+function evCard(o, i) {
   const [d, m] = jdToDate(o.jd);
-  return `<div class="ev ${o.cls}" data-act="edit" data-kind="${o.src.kind}" data-id="${esc(o.src.id)}">
-    <div class="ev-date"><b>${d}</b><span>Th ${m}</span><small>${WDS[wdOf(o.jd)]}</small></div>
-    <div class="ev-body"><div class="ev-t">${ICON[o.src.kind]} ${esc(o.title)}</div><div class="ev-i">${esc(o.info)}</div></div>
+  // người: ảnh đại diện + huy hiệu 🎂/🕯️; ngày lễ: icon riêng của ngày đó
+  const pic = o.src.p ? `<div class="ev-av">${avHtml(o.src.p, 'avatar')}<span class="bd">${ICON[o.src.kind]}</span></div>`
+    : `<div class="ev-av"><div class="ico">${esc(itemIcon(o.src.it))}</div></div>`;
+  return `<div class="ev ${o.cls}" style="animation-delay:${Math.min(i || 0, 10) * 40}ms" data-act="edit" data-kind="${o.src.kind}" data-id="${esc(o.src.id)}">
+    <div class="ev-date"><b>${d}</b><span>Th ${m}</span><small>${WDS[wdOf(o.jd)]}</small></div>${pic}
+    <div class="ev-body"><div class="ev-t">${esc(o.title)}</div><div class="ev-i">${esc(o.info)}</div></div>
     <div class="ev-n">${daysText(o.days)}</div></div>`;
 }
 function viewUp(today, occ) {
   const [d, m, y] = jdToDate(today), L = lunarOf(today);
   const tod = occ.filter(o => o.days === 0), soon = occ.filter(o => o.days > 0 && o.days <= o.soon), rest = occ.filter(o => o.days > o.soon);
   let h = `<div class="card todaybox"><div class="big">${WD[wdOf(today)]}, ${d}/${m}/${y}</div>
-    <div>Âm lịch: ngày ${L[0]} tháng ${L[1]}${L[3] ? ' nhuận' : ''} năm ${canchi(L[2])}</div></div>`;
+    <div class="lunar">Âm lịch: ngày ${L[0]} tháng ${L[1]}${L[3] ? ' nhuận' : ''} năm ${canchi(L[2])}</div></div>`;
   if (tod.length) h += `<div class="banner today">🔔 Hôm nay có ${tod.length} ngày cần nhớ!</div>`;
   if (soon.length) h += `<div class="banner soon">⏰ Sắp đến: ${soon.length} ngày trong thời gian báo trước</div>`;
   if (!tod.length && !soon.length) h += `<div class="banner none">✨ Không có ngày nào sắp đến trong ${data.settings.soon} ngày tới.</div>`;
@@ -725,20 +804,106 @@ function ageNow(p, today) {   // tuổi hiện tại (người còn sống), nul
   return o.jd === today ? o.yr - p.birth.y : o.yr - p.birth.y - 1;
 }
 function viewPeople(today) {
-  let h = `<input id="q" class="search" type="search" placeholder="🔍 Tìm theo tên hoặc mối quan hệ">`;
+  let h = `<div class="seg">${[['list', '📋 Danh sách'], ['tree', '🌳 Sơ đồ gia đình']].map(([v, t]) =>
+    `<button type="button" data-act="pv" data-v="${v}" class="${ui.pv === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  if (ui.pv === 'tree') return h + viewTree(today);
+  h += `<input id="q" class="search" type="search" placeholder="🔍 Tìm theo tên hoặc mối quan hệ">`;
   h += `<button class="btn primary block" data-act="addp">＋ Thêm người</button>`;
   if (!data.people.length) return h + `<div class="empty">Chưa có ai. Bấm <b>＋ Thêm người</b> để thêm vợ, bố mẹ, ông bà…</div>`;
-  const list = [...data.people].sort((a, b) => (a.dead - b.dead) || (a.rel || '').localeCompare(b.rel || '', 'vi') || a.name.localeCompare(b.name, 'vi'));
-  for (const p of list) {
-    const s = [];
-    if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
-    if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
-    h += `<div class="row" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
-      <div class="avatar${p.dead ? ' dead' : ''}">${esc(p.name.trim().split(/\s+/).pop().charAt(0).toUpperCase())}</div>
-      <div class="grow"><div class="t">${esc(p.name)}${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
-      <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
+  const list = [...data.people].sort((a, b) => (b.me - a.me) || (a.dead - b.dead) || (a.rel || '').localeCompare(b.rel || '', 'vi') || a.name.localeCompare(b.name, 'vi'));
+  return h + list.map(p => personRow(p, today)).join('');
+}
+function personRow(p, today) {
+  const s = [];
+  if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
+  if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
+  return `<div class="row" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
+    ${avHtml(p, 'avatar')}
+    <div class="grow"><div class="t">${esc(p.name)}${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
+    <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
+}
+// Ảnh đại diện: có ảnh thì hiện ảnh, không thì chữ cái đầu của tên (màu theo giới tính, xám nếu đã mất)
+function avHtml(p, base) {
+  const cls = base + (p.dead ? ' dead' : p.sex ? ' ' + p.sex : '');
+  if (p.photo) return `<img class="${cls}" src="${esc(p.photo)}" alt="">`;
+  const n = (p.name || '?').trim().split(/\s+/).pop() || '?';
+  return `<div class="${cls}">${esc(n.charAt(0).toUpperCase())}</div>`;
+}
+
+/* ----- Sơ đồ gia đình -----
+   Chỉ người "đứng riêng" lưu cấp (lv). Con lấy cấp của bố/mẹ + 1, vợ/chồng lấy cấp của người kia.
+   "Đơn vị" = 1 người + vợ/chồng của người đó (đứng cạnh nhau, nối bằng ❤). */
+const TP = 150, TL = 26, TC = 84, TA = 32;   // khoảng cách giữa 2 cấp, chiều cao nhãn cấp, chiều cao thẻ, đường nối dưới thẻ
+function treeInfo() {
+  const byId = new Map(data.people.map(p => [p.id, p])), lv = new Map();
+  const get = (p, d) => {
+    if (lv.has(p.id)) return lv.get(p.id);
+    let v = null;
+    if (d < 60) {
+      if (p.sp && byId.has(p.sp)) v = get(byId.get(p.sp), d + 1);
+      else if (p.par && byId.has(p.par)) { const x = get(byId.get(p.par), d + 1); v = x == null ? null : x + 1; }
+      else v = p.lv || null;
+    }
+    lv.set(p.id, v);
+    return v;
+  };
+  data.people.forEach(p => get(p, 0));
+  return { byId, lv };
+}
+const isHead = (p, T) => T.lv.get(p.id) != null && !(p.sp && T.byId.has(p.sp));
+const headsAt = (T, L) => data.people.filter(p => isHead(p, T) && T.lv.get(p.id) === L);
+const spousesOf = h => data.people.filter(x => x.sp === h.id);
+const unitLabel = h => [h, ...spousesOf(h)].map(x => x.name).join(' và ');
+function treeRows(T) { return Math.max(data.settings.treeRows || 1, ...[...T.lv.values()].filter(Boolean)); }
+function sortP(list) {   // anh chị em: theo ô "thứ tự", rồi năm sinh, rồi thứ tự thêm vào
+  const idx = new Map(data.people.map((p, i) => [p.id, i]));
+  return list.sort((a, b) => (a.ord || 99) - (b.ord || 99) || ((a.birth && a.birth.y) || 9999) - ((b.birth && b.birth.y) || 9999) || idx.get(a.id) - idx.get(b.id));
+}
+function descendants(p) {   // p + vợ/chồng + con cháu (không được chọn làm bố mẹ của p)
+  const s = new Set([p.id]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const x of data.people) if (!s.has(x.id) && (s.has(x.par) || s.has(x.sp))) { s.add(x.id); grew = true; }
   }
+  return s;
+}
+function detach(p) {   // bỏ p khỏi sơ đồ: con và vợ/chồng của p chuyển thành "đứng riêng" ở cấp hiện tại
+  const T = treeInfo();
+  for (const x of data.people) if (x !== p && (x.par === p.id || x.sp === p.id)) { x.lv = T.lv.get(x.id); x.par = null; x.sp = null; }
+}
+function viewTree(today) {
+  if (!data.people.some(p => p.me)) {
+    return `<div class="card" style="margin-top:12px"><b>Bắt đầu sơ đồ gia đình</b>
+      <p class="muted">Trước tiên chọn <b>Tôi</b> ở cấp mấy. Cấp 1 là hàng trên cùng (ví dụ bố mẹ). Sau này thêm cấp trên (ông bà) được.</p>
+      <div style="display:flex;gap:8px">${[1, 2, 3].map(l => `<button class="btn" style="flex:1" data-act="mkme" data-lv="${l}">Tôi ở cấp ${l}</button>`).join('')}</div></div>`;
+  }
+  const T = treeInfo(), rows = treeRows(T);
+  const occ = new Map();   // người đang có sinh nhật / ngày giỗ sắp đến
+  for (const o of allOcc(today)) if (o.src.p && o.days <= o.soon && !occ.has(o.src.p.id)) occ.set(o.src.p.id, o);
+  const roots = sortP(data.people.filter(p => isHead(p, T) && !(p.par && T.byId.has(p.par)))).sort((a, b) => T.lv.get(a.id) - T.lv.get(b.id));
+  let h = `<button class="btn small block" data-act="lvup">＋ Thêm cấp trên</button><div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
+  for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>Cấp ${L}</span><button data-act="addlv" data-lv="${L}">＋ Thêm</button></div>`;
+  h += `<div class="tree-sc"><div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div>`;
+  const lastEmpty = rows > 1 && ![...T.lv.values()].includes(rows);
+  h += `<div style="display:flex;gap:8px"><button class="btn small" style="flex:1" data-act="lvadd">＋ Thêm cấp mới</button>${lastEmpty ? '<button class="btn small danger" data-act="lvdel">Bỏ cấp cuối</button>' : ''}</div>
+    <p class="muted small">Bấm vào một người để sửa. Hàng dài quá màn hình thì vuốt ngang.</p>`;
+  const un = data.people.filter(p => T.lv.get(p.id) == null);
+  if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2><p class="muted small">Bấm vào người để chọn cấp và nối với người khác.</p>` + un.map(p => personRow(p, today)).join('');
   return h;
+}
+function unitHtml(h, T, occ) {
+  const mem = [h, ...spousesOf(h)];
+  const kids = sortP(data.people.filter(x => x.par === h.id && isHead(x, T)));
+  let s = `<div class="uc${mem.some(m => m.me) ? ' me' : ''}">` + mem.map((m, i) => (i ? '<span class="hrt">❤</span>' : '') + tpHtml(m, occ)).join('') + '</div>';
+  if (kids.length) s += `<div class="vl" style="height:${TA}px"></div><div class="kids">` +
+    kids.map(k => `<div class="kid"><div class="vl" style="height:${TP - TC - TA}px"></div>${unitHtml(k, T, occ)}</div>`).join('') + '</div>';
+  return `<div class="tu">${s}</div>`;
+}
+function tpHtml(p, occ) {
+  const o = occ.get(p.id);
+  const st = o ? `<span class="${o.cls}">${o.src.kind === 'd' ? '🕯️' : '🎂'} ${o.days === 0 ? 'Hôm nay' : 'còn ' + o.days + ' ngày'}</span>`
+    : esc(p.rel || (p.dead ? 'Đã mất' : ''));
+  return `<div class="tp" data-act="edit" data-kind="p" data-id="${esc(p.id)}">${avHtml(p, 'avatar')}<div class="nm">${esc(p.name)}</div><div class="st">${st}</div></div>`;
 }
 function filterPeople(q) {
   q = q.trim().toLowerCase();
@@ -752,6 +917,7 @@ function viewItems(today) {
   for (const { it, o } of list) {
     const when = o ? `${daysText(o.jd - today)} (${jdToDate(o.jd).slice(0, 2).join('/')})` : '';
     h += `<div class="row${it.r.on ? '' : ' off'}" data-act="edit" data-kind="i" data-id="${esc(it.id)}">
+      <div class="ico-s">${esc(itemIcon(it))}</div>
       <div class="grow"><div class="t">${esc(it.name)}</div><div class="s">${esc(fmtDate(it.date))}${it.r.on && when ? ' · ' + esc(when) : ''}</div></div>
       <input type="checkbox" class="sw" data-act="toggle" data-id="${esc(it.id)}" ${it.r.on ? 'checked' : ''}></div>`;
   }
@@ -769,6 +935,22 @@ $('#view').addEventListener('click', async e => {
   }
   if (a === 'addp') return editPerson(null);
   if (a === 'addi') return editItem(null);
+  if (a === 'pv') { ui.pv = t.dataset.v; saveUi(); return render(); }
+  if (a === 'addlv') return editPerson(null, { lv: +t.dataset.lv });
+  if (['mkme', 'lvup', 'lvadd', 'lvdel'].includes(a)) {
+    const T = treeInfo(), rows = treeRows(T), s = data.settings;
+    if (a === 'mkme') {   // tạo ô "Tôi"
+      const L = +t.dataset.lv;
+      data.people.push(Object.assign(newPerson(), { name: 'Tôi', me: true, lv: L }));
+      s.treeRows = Math.max(rows, L + 1);
+    } else if (a === 'lvup') {   // thêm cấp trên: mọi người đứng riêng xuống 1 cấp
+      data.people.forEach(p => { if (T.lv.get(p.id) != null && !(p.sp && T.byId.has(p.sp)) && !(p.par && T.byId.has(p.par))) p.lv = T.lv.get(p.id) + 1; });
+      s.treeRows = rows + 1;
+    } else if (a === 'lvadd') s.treeRows = rows + 1;
+    else s.treeRows = rows - 1;
+    await save(); render();
+    return;
+  }
   if (a === 'edit') {
     if (t.dataset.kind === 'i') editItem(data.items.find(x => x.id === t.dataset.id));
     else editPerson(data.people.find(x => x.id === t.dataset.id));
@@ -928,17 +1110,51 @@ function sampleVars(kind, name, rel, dt) {
 const RELS = ['Vợ', 'Chồng', 'Con trai', 'Con gái', 'Bố', 'Mẹ', 'Ông nội', 'Bà nội', 'Ông ngoại', 'Bà ngoại', 'Bố vợ', 'Mẹ vợ', 'Bố chồng', 'Mẹ chồng',
   'Anh trai', 'Chị gái', 'Em trai', 'Em gái', 'Bác', 'Chú', 'Thím', 'Cô', 'Dượng', 'Dì', 'Cậu', 'Mợ', 'Anh rể', 'Chị dâu', 'Em rể', 'Em dâu',
   'Cháu', 'Cụ', 'Bạn', 'Đồng nghiệp', 'Thầy', 'Cô giáo'];
-function editPerson(p) {
+// Ảnh: cắt vuông giữa ảnh, thu nhỏ còn 200x200 (JPEG) rồi lưu chung với dữ liệu (đã mã hóa)
+function loadPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const S = 200, c = document.createElement('canvas'), m = Math.min(img.width, img.height);
+      c.width = c.height = S;
+      c.getContext('2d').drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, S, S);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img')); };
+    img.src = url;
+  });
+}
+function editPerson(p, preset) {
   const isNew = !p;
-  p = p || { id: uid(), name: '', rel: '', note: '', birth: null, br: newRemind(true), dead: false, death: null, dr: newRemind(true) };
+  p = p || newPerson();
+  let photo = p.photo || '', sex = p.sex || '';
   const html = `
+    <div class="line" style="justify-content:flex-start;gap:14px">
+      <div id="pAv"></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button type="button" class="btn small" id="pPhoto">📷 Chọn ảnh</button>
+        <button type="button" class="btn small danger" id="pPhotoDel">Xóa ảnh</button>
+      </div>
+      <input type="file" id="pFile" accept="image/*" hidden>
+    </div>
     <label class="f"><span class="l">Tên *</span><input class="inp" id="pName" type="text" value="${esc(p.name)}" placeholder="Ví dụ: Lan"></label>
     <label class="f"><span class="l">Mối quan hệ với tôi</span><input class="inp" id="pRel" type="text" list="relList" value="${esc(p.rel)}" placeholder="Ví dụ: Vợ, Bố, Ông nội…"></label>
     <datalist id="relList">${RELS.map(r => `<option value="${r}">`).join('')}</datalist>
+    <div class="f"><span class="l">Giới tính</span><div class="seg" id="pSex">${[['m', 'Nam'], ['f', 'Nữ'], ['', 'Không rõ']].map(([v, t]) =>
+      `<button type="button" data-v="${v}" class="${sex === v ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+    <div class="grp"><h3>🌳 Vị trí trong sơ đồ gia đình</h3>
+      <label class="f"><span class="l">Cấp</span><select class="inp" id="tLv"></select></label>
+      <label class="f" id="tTypeBox"><span class="l">Nối với</span><select class="inp" id="tType"></select></label>
+      <label class="f" id="tTgtBox"><span class="l" id="tTgtL"></span><select class="inp" id="tTgt"></select></label>
+      <label class="f" id="tOrdBox"><span class="l">Thứ tự trong anh chị em (1 = lớn nhất, đứng bên trái)</span>
+        <input class="inp" id="tOrd" inputmode="numeric" maxlength="2" placeholder="Để trống = xếp theo năm sinh" value="${p.ord || ''}"></label>
+      <div class="muted small" id="tNote"></div></div>
     <div class="grp"><h3>🎂 Ngày sinh</h3>${dateBoxHtml('birth', p.birth, false, 'Năm sinh')}${remindHtml('br', p.br, 'b')}</div>
-    <div class="grp"><div class="line"><h3 style="margin:6px 0">🕯️ Đã mất</h3><input type="checkbox" class="sw" id="pDead"${p.dead ? ' checked' : ''}></div>
-      <div id="deadBox"${p.dead ? '' : ' hidden'}><div class="muted small">Ngày mất (ngày giỗ). Ngày giỗ thường tính theo âm lịch.</div>
-      ${dateBoxHtml('death', p.death || { c: 'l', d: '', m: '', y: null }, false, 'Năm mất')}${remindHtml('dr', p.dr, 'd')}</div></div>
+    <div class="grp"><h3>🕯️ Ngày mất</h3>
+      <div class="muted small">Để trống nếu còn sống. Nhập ngày và tháng mất thì người này được tính là đã mất (hiện màu xám) và app nhắc ngày giỗ.</div>
+      ${dateBoxHtml('death', p.death || { c: 'l', d: '', m: '', y: null }, false, 'Năm mất')}
+      <div id="drBox"${p.death ? '' : ' hidden'}>${remindHtml('dr', p.dr, 'd')}</div></div>
     <label class="f"><span class="l">Ghi chú (sở thích, quà đã tặng, số điện thoại…)</span><textarea class="inp" id="pNote">${esc(p.note)}</textarea></label>
     ${isNew ? '' : '<button class="btn danger block" id="pDel">🗑 Xóa người này</button>'}`;
   openSheet(isNew ? 'Thêm người' : 'Sửa thông tin', html, async () => {
@@ -946,36 +1162,109 @@ function editPerson(p) {
     if (!name) { alert('Chưa nhập tên.'); return false; }
     const b = dateBoxGet('birth', false);
     if (!b.ok) { alert('Ngày sinh: ' + b.err); return false; }
-    const dead = $('#pDead').checked;
-    let dd = { ok: true, dt: null };
-    if (dead) { dd = dateBoxGet('death', false); if (!dd.ok) { alert('Ngày mất: ' + dd.err); return false; } }
-    Object.assign(p, { name, rel: $('#pRel').value.trim(), note: $('#pNote').value.trim(), birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
+    const dd = dateBoxGet('death', false);   // đã mất = có nhập ngày mất
+    if (!dd.ok) { alert('Ngày mất: ' + dd.err); return false; }
+    const dead = !!dd.dt;
+    const L = +$('#tLv').value || 0, type = L ? $('#tType').value : '', tgt = $('#tTgt').value;
+    if (L && type !== 'root' && !tgt) { alert('Chưa chọn người để nối.'); return false; }
+    p.ord = parseInt($('#tOrd').value, 10) || null;
+    Object.assign(p, { name, rel: $('#pRel').value.trim(), note: $('#pNote').value.trim(), sex, photo, birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
+    // vị trí trong sơ đồ
+    if (!L) { if (!isNew) detach(p); Object.assign(p, { lv: null, par: null, sp: null }); }
+    else if (type === 'root') Object.assign(p, { lv: L, par: null, sp: null });
+    else if (type === 'par') Object.assign(p, { lv: null, par: tgt, sp: null });
+    else {   // thành vợ/chồng: con của p chuyển sang làm con của người kia
+      data.people.forEach(x => { if (x.par === p.id) x.par = tgt; });
+      Object.assign(p, { lv: null, par: null, sp: tgt });
+    }
+    if (L) data.settings.treeRows = Math.max(data.settings.treeRows, L);
     if (isNew) data.people.push(p);
     await save();
     toast('Đã lưu');
   });
+  // ảnh + giới tính
+  const hasDeath = () => { const r = dateBoxGet('death', false); return r.ok && !!r.dt; };
+  const updAv = () => {
+    $('#pAv').innerHTML = avHtml({ name: $('#pName').value || '?', sex, photo, dead: hasDeath() }, 'avatar big');
+    $('#pPhotoDel').hidden = !photo;
+  };
+  $('#pPhoto').onclick = () => $('#pFile').click();
+  $('#pFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try { photo = await loadPhoto(f); updAv(); } catch (err) { alert('Không đọc được ảnh này.'); }
+  };
+  $('#pPhotoDel').onclick = () => { photo = ''; updAv(); };
+  $('#pSex').querySelectorAll('button').forEach(b => b.onclick = () => {
+    sex = b.dataset.v;
+    $('#pSex').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    updAv();
+  });
+  // vị trí trong sơ đồ: chọn cấp → chọn "là con của" (cấp trên) hoặc "là vợ/chồng của" (cùng cấp)
+  const T = treeInfo(), rows = treeRows(T), desc = descendants(p);
+  const cur = { type: p.sp ? 'sp' : p.par ? 'par' : 'root', tgt: p.sp || p.par || '' };
+  let lv0 = T.lv.get(p.id) || null;
+  if (isNew && preset && preset.lv) { lv0 = preset.lv; cur.type = 'par'; }
+  const lvSel = $('#tLv'), tSel = $('#tType'), gSel = $('#tTgt');
+  lvSel.innerHTML = '<option value="">Chưa xếp vào sơ đồ</option>' + [...Array(rows)].map((_, i) => `<option value="${i + 1}">Cấp ${i + 1}</option>`).join('');
+  lvSel.value = lv0 || '';
+  const updTree = () => {
+    const L = +lvSel.value || 0;
+    $('#tTypeBox').hidden = $('#tTgtBox').hidden = $('#tOrdBox').hidden = !L;
+    if (!L) { $('#tNote').textContent = 'Không hiện trong sơ đồ (vẫn có trong danh sách và vẫn nhắc nhở).'; return; }
+    const parOpts = L > 1 ? headsAt(T, L - 1).filter(h => !desc.has(h.id)) : [];
+    const spOpts = spousesOf(p).length ? [] : headsAt(T, L).filter(h => !desc.has(h.id));
+    const types = [];
+    if (parOpts.length) types.push(['par', `Là con của (cấp ${L - 1})`]);
+    if (spOpts.length) types.push(['sp', `Là vợ/chồng của (cấp ${L})`]);
+    types.push(['root', 'Đứng riêng (không nối với ai)']);
+    const keep = tSel.value || cur.type;
+    tSel.innerHTML = types.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+    tSel.value = types.some(x => x[0] === keep) ? keep : types[0][0];
+    const type = tSel.value, opts = type === 'par' ? parOpts : type === 'sp' ? spOpts : [];
+    $('#tTgtBox').hidden = !opts.length;
+    $('#tTgtL').textContent = type === 'par' ? 'Là con của' : 'Là vợ/chồng của';
+    const keepT = gSel.value || cur.tgt;
+    gSel.innerHTML = opts.map(h => `<option value="${esc(h.id)}">${esc(type === 'par' ? unitLabel(h) : h.name)}</option>`).join('');
+    if (opts.some(h => h.id === keepT)) gSel.value = keepT;
+    $('#tOrdBox').hidden = type === 'sp';
+    $('#tNote').textContent = type === 'root' ? 'Hiện ở cấp này, không có đường nối lên cấp trên.' : '';
+  };
+  lvSel.onchange = () => { tSel.innerHTML = ''; updTree(); };
+  tSel.onchange = () => { gSel.innerHTML = ''; updTree(); };
+  updTree();
   const ctxB = () => sampleVars('b', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('birth', false).dt);
   const ctxD = () => sampleVars('d', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('death', false).dt);
   bindRemind('br', 'b', ctxB); bindRemind('dr', 'd', ctxD);
   const updAll = () => { $('#rb_br').upd(); $('#rb_dr').upd(); };
-  bindDateBox('birth', updAll); bindDateBox('death', updAll);
-  $('#pName').oninput = updAll; $('#pRel').oninput = updAll;
-  $('#pDead').onchange = e => {
-    $('#deadBox').hidden = !e.target.checked;
-    // người đã mất: mặc định tắt nhắc sinh nhật (vẫn bật lại được)
-    if (e.target.checked && isNew) { const sw = $('#rb_br .on'); sw.checked = false; $('#rb_br .rdet').hidden = true; }
+  // nhập / xóa ngày mất: đổi xám, hiện / ẩn phần nhắc giỗ ngay
+  let wasDead = hasDeath();
+  const updDead = () => {
+    const dead = hasDeath();
+    $('#drBox').hidden = !dead;
+    updAv();
+    // vừa nhập ngày mất (người mới): mặc định tắt nhắc sinh nhật (vẫn bật lại được)
+    if (dead && !wasDead && isNew) { $('#rb_br .on').checked = false; $('#rb_br .rdet').hidden = true; }
+    wasDead = dead;
   };
+  bindDateBox('birth', updAll); bindDateBox('death', () => { updAll(); updDead(); });
+  $('#pName').oninput = () => { updAll(); updAv(); }; $('#pRel').oninput = updAll;
+  updAv();
   if ($('#pDel')) $('#pDel').onclick = async () => {
     if (!confirm(`Xóa "${p.name}"? Không khôi phục lại được.`)) return;
+    detach(p);
     data.people = data.people.filter(x => x !== p);
     await save(); closeSheet(); render(); toast('Đã xóa');
   };
 }
 function editItem(it) {
   const isNew = !it;
-  it = it || { id: uid(), name: '', date: { c: 's', d: '', m: '', y: null }, note: '', r: newRemind(true) };
+  it = it || { id: uid(), name: '', icon: '🎉', date: { c: 's', d: '', m: '', y: null }, note: '', r: newRemind(true) };
+  let icon = itemIcon(it);
   const html = `
     <label class="f"><span class="l">Tên ngày *</span><input class="inp" id="iName" type="text" value="${esc(it.name)}" placeholder="Ví dụ: Kỷ niệm ngày cưới"></label>
+    <div class="f"><span class="l">Biểu tượng</span><div class="icons" id="iIcon">${(ICONS.includes(icon) ? ICONS : [icon, ...ICONS]).map(e =>
+      `<button type="button" class="${e === icon ? 'on' : ''}">${e}</button>`).join('')}</div></div>
     <div class="grp"><h3>📅 Ngày</h3>${dateBoxHtml('idate', it.date, true, 'Năm bắt đầu')}
       <div class="muted small">Năm bắt đầu (không bắt buộc): nhập thì app tính được "năm thứ mấy", ví dụ kỷ niệm ngày cưới.</div>
       ${remindHtml('ir', it.r, 'i')}</div>
@@ -986,7 +1275,7 @@ function editItem(it) {
     if (!name) { alert('Chưa nhập tên ngày.'); return false; }
     const d = dateBoxGet('idate', true);
     if (!d.ok) { alert('Ngày: ' + d.err); return false; }
-    Object.assign(it, { name, date: d.dt, note: $('#iNote').value.trim(), r: remindGet('ir') });
+    Object.assign(it, { name, icon, date: d.dt, note: $('#iNote').value.trim(), r: remindGet('ir') });
     if (isNew) data.items.push(it);
     await save();
     toast('Đã lưu');
@@ -994,6 +1283,10 @@ function editItem(it) {
   bindRemind('ir', 'i', () => sampleVars('i', $('#iName').value.trim(), '', dateBoxGet('idate', false).dt));
   bindDateBox('idate', () => $('#rb_ir').upd());
   $('#iName').oninput = () => $('#rb_ir').upd();
+  $('#iIcon').querySelectorAll('button').forEach(b => b.onclick = () => {
+    icon = b.textContent;
+    $('#iIcon').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  });
   if ($('#iDel')) $('#iDel').onclick = async () => {
     if (!confirm(`Xóa "${it.name}"?`)) return;
     data.items = data.items.filter(x => x !== it);
@@ -1152,7 +1445,7 @@ async function exportIcs() {
       const jd = occForYear(src.dt, yr);
       if (jd == null || jd < today || jd > endJd) continue;
       const o = { jd, yr }, v = varsOf(src, o, 0), D = DEF[src.kind], soon = soonOf(src.r);
-      const title = ICON[src.kind] + ' ' + fill(D.l, v);
+      const title = (src.it ? itemIcon(src.it) : ICON[src.kind]) + ' ' + fill(D.l, v);
       L.push('BEGIN:VEVENT', `UID:${src.kind}-${src.id}-${yr}@mymemory`, `DTSTAMP:${now}`,
         `DTSTART;VALUE=DATE:${ymd(jd)}`, `DTEND;VALUE=DATE:${ymd(jd + 1)}`, 'TRANSP:TRANSPARENT', 'SUMMARY:' + icsEsc(title));
       if (!s.icsShort) {
