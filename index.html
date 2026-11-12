@@ -146,7 +146,9 @@ img.avatar.dead{filter:grayscale(1)}
 .avatar.big{flex:0 0 76px;width:76px;height:76px;font-size:30px}
 
 /* Sơ đồ gia đình: mỗi cấp 1 hàng, cách nhau --tp (150px) */
-.tree-wrap{position:relative;margin:8px -12px 10px}
+.tree-out{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:8px -12px 10px}
+.tree-box{position:relative;margin:0 auto}
+.tree-wrap{position:absolute;left:0;top:0;transform-origin:0 0}
 .tree-lv{position:absolute;left:0;right:0;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;pointer-events:none;z-index:2}
 .tree-lv span{font-size:12px;font-weight:700;color:var(--muted);background:var(--bg);padding:1px 6px;border-radius:6px}
 .tree-lv button{pointer-events:auto;font-size:12px;font-weight:700;border:1px dashed var(--acc);color:var(--acc);background:var(--bg);border-radius:8px;padding:2px 10px}
@@ -229,6 +231,7 @@ textarea.inp{min-height:70px;resize:vertical}
 .pad button.fn{background:none;box-shadow:none;font-size:15px;color:var(--acc);font-weight:700}
 .pad button.fn.bio{font-size:30px}
 .pad button:disabled{visibility:hidden}
+.pin-cancel{margin-top:14px;border:0;background:none;color:var(--acc);font-weight:700;font-size:16px;padding:8px 18px}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(30,20,25,.92);color:#fff;
   padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -248,7 +251,7 @@ textarea.inp{min-height:70px;resize:vertical}
   <main id="view"></main>
   <nav>
     <button data-tab="up"><span>📅</span><i>Sắp tới</i></button>
-    <button data-tab="people"><span>👪</span><i>Người thân</i></button>
+    <button data-tab="people"><span>👪</span><i>Gia đình</i></button>
     <button data-tab="items"><span>🎉</span><i>Ngày lễ</i></button>
     <button data-tab="set"><span>⚙️</span><i>Cài đặt</i></button>
   </nav>
@@ -274,6 +277,7 @@ textarea.inp{min-height:70px;resize:vertical}
       <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
       <button data-k="L" class="fn" id="pinL"></button><button data-k="0">0</button><button data-k="B" class="fn" id="pinB">⌫</button>
     </div>
+    <button class="pin-cancel" id="pinX" hidden>Hủy</button>
   </div>
 </div>
 
@@ -284,7 +288,7 @@ textarea.inp{min-height:70px;resize:vertical}
 
 <script>
 'use strict';
-const VER = '1.0';
+const VER = '1.1';
 const LS_VAULT = 'mymemory_vault';   // dữ liệu đã mã hóa
 const LS_FAIL = 'mymemory_fail';     // số lần nhập sai mã PIN
 const LS_UI = 'mymemory_ui';         // tab đang mở (không phải thông tin cá nhân)
@@ -658,6 +662,7 @@ function showPin(opt) {
     L.className = 'fn' + (opt.bio ? ' bio' : '');
     L.textContent = opt.bio ? '🙂' : 'Hủy';
     L.title = opt.bio ? 'Mở bằng Face ID' : 'Hủy';
+    $('#pinX').hidden = !(opt.bio && opt.cancel);   // có nút Face ID thì nút Hủy nằm riêng bên dưới
     pinDots();
     $('#pin').hidden = false;
     if (opt.bio && opt.autoBio) setTimeout(pinBio, 300);
@@ -695,6 +700,7 @@ async function pinKey(k) {
   else { s.buf = ''; pinDots(); pinShake(r); }
 }
 $('#pinPad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) pinKey(b.dataset.k); });
+$('#pinX').onclick = () => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
 document.addEventListener('keydown', e => {
   if (!pinState) return;
   if (/^[0-9]$/.test(e.key)) pinKey(e.key);
@@ -766,7 +772,7 @@ document.addEventListener('visibilitychange', () => {
 /* =====================================================================
    GIAO DIỆN
    ===================================================================== */
-const ui = { tab: 'up', pv: 'list' };   // tab đang mở, tab Người thân: danh sách / sơ đồ
+const ui = { tab: 'up', pv: 'tree' };   // tab đang mở, tab Gia đình: sơ đồ / danh sách
 try { Object.assign(ui, JSON.parse(localStorage.getItem(LS_UI)) || {}); } catch (e) {}
 let tab = ui.tab;
 function saveUi() { ui.tab = tab; try { localStorage.setItem(LS_UI, JSON.stringify(ui)); } catch (e) {} }
@@ -790,14 +796,30 @@ function render() {
   else if (tab === 'items') v.innerHTML = viewItems(today);
   else v.innerHTML = viewSet();
   if (tab === 'set') bindSet();
-  const sc = $('.tree-sc'), me = $('.uc.me');
-  if (sc && me) {   // sơ đồ rộng hơn màn hình: cuộn ngang tới cặp "Tôi"
-    const a = sc.getBoundingClientRect(), b = me.getBoundingClientRect();
-    sc.scrollLeft += b.left + b.width / 2 - (a.left + a.width / 2);
-  }
   const q = $('#q');
   if (q) q.oninput = () => filterPeople(q.value);
+  fitTree();
 }
+// Sơ đồ vừa màn hình: ít người thì phóng to (tối đa 1.8 lần), nhiều người thì thu nhỏ (tối thiểu 0.55 lần, quá nữa thì vuốt ngang)
+function fitTree() {
+  const out = $('.tree-out');
+  if (!out) return;
+  const box = out.firstElementChild, wrap = box.firstElementChild, tree = wrap.querySelector('.tree');
+  wrap.style.transform = ''; wrap.style.width = 'max-content';
+  const tw = tree.scrollWidth, H = wrap.offsetHeight;
+  const availW = out.clientWidth;
+  const availH = window.innerHeight - (out.getBoundingClientRect().top + window.scrollY) - $('nav').offsetHeight - 70;
+  const s = Math.max(0.55, Math.min(1.8, availW / tw, Math.max(availH, 250) / H));
+  const w = Math.max(tw, availW / s);    // sơ đồ hẹp hơn màn hình thì nằm giữa
+  wrap.style.width = w + 'px'; wrap.style.transform = `scale(${s})`;
+  box.style.width = w * s + 'px'; box.style.height = H * s + 'px';
+  const me = $('.uc.me');
+  if (me) {   // sơ đồ rộng hơn màn hình: cuộn ngang tới cặp "Tôi"
+    const a = out.getBoundingClientRect(), b = me.getBoundingClientRect();
+    out.scrollLeft += b.left + b.width / 2 - (a.left + a.width / 2);
+  }
+}
+window.addEventListener('resize', () => { if (tab === 'people' && ui.pv === 'tree') fitTree(); });
 function evCard(o, i) {
   const [d, m] = jdToDate(o.jd);
   // người: ảnh đại diện + huy hiệu 🎂/🕯️; ngày lễ: icon riêng của ngày đó
@@ -819,7 +841,7 @@ function viewUp(today, occ) {
   if (tod.length) h += `<h2 class="sec">🔴 Hôm nay</h2>` + tod.map(evCard).join('');
   if (soon.length) h += `<h2 class="sec">🟠 Sắp đến</h2>` + soon.map(evCard).join('');
   if (rest.length) h += `<h2 class="sec">📆 Các ngày khác</h2>` + rest.map(evCard).join('');
-  if (!occ.length) h += `<div class="empty">Chưa có ngày nào. Vào tab <b>Người thân</b> để thêm người.</div>`;
+  if (!occ.length) h += `<div class="empty">Chưa có ngày nào. Vào tab <b>Gia đình</b> → <b>📋 Danh sách</b> để thêm người.</div>`;
   return h;
 }
 function ageNow(p, today) {   // tuổi hiện tại (người còn sống), null nếu không biết năm sinh
@@ -829,7 +851,7 @@ function ageNow(p, today) {   // tuổi hiện tại (người còn sống), nul
   return o.jd === today ? o.yr - p.birth.y : o.yr - p.birth.y - 1;
 }
 function viewPeople(today) {
-  let h = `<div class="seg">${[['list', '📋 Danh sách'], ['tree', '🌳 Sơ đồ gia đình']].map(([v, t]) =>
+  let h = `<div class="seg">${[['tree', '🌳 Sơ đồ gia đình'], ['list', '📋 Danh sách']].map(([v, t]) =>
     `<button type="button" data-act="pv" data-v="${v}" class="${ui.pv === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   if (ui.pv === 'tree') return h + viewTree(today);
   h += `<input id="q" class="search" type="search" placeholder="🔍 Tìm theo tên hoặc mối quan hệ">`;
@@ -913,9 +935,10 @@ function viewTree(today) {
   const occ = new Map();   // người đang có sinh nhật / ngày giỗ sắp đến
   for (const o of allOcc(today)) if (o.src.p && o.days <= o.soon && !occ.has(o.src.p.id)) occ.set(o.src.p.id, o);
   const roots = sortP(data.people.filter(p => isHead(p, T) && !(p.par && T.byId.has(p.par)))).sort((a, b) => T.lv.get(a.id) - T.lv.get(b.id));
-  let h = `<div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
+  // tree-out: khung cuộn ngang; tree-box: kích thước sau khi phóng to/thu nhỏ; tree-wrap: sơ đồ kích thước gốc (fitTree() tính tỉ lệ)
+  let h = `<div class="tree-out"><div class="tree-box"><div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
   for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>Cấp ${L}</span></div>`;
-  h += `<div class="tree-sc"><div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div>
+  h += `<div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div></div>
     <p class="muted small">Bấm vào một người để xem thông tin. ${howTo} Hàng dài quá màn hình thì vuốt ngang.</p>`;
   const un = data.people.filter(p => T.lv.get(p.id) == null);
   if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2>` + un.map(p => personRow(p, today, true)).join('');
@@ -1437,8 +1460,19 @@ function bindSet() {
     location.reload();
   };
 }
+// Xác nhận bằng Face ID (không mở khóa lại, chỉ kiểm tra đúng chủ máy) – dùng khi quên mã PIN
+async function verifyBio() {
+  try {
+    const out = await bioGet(unb64(vault.bio.id), unb64(vault.bio.salt));
+    if (!out) return 'Không lấy được khóa từ Face ID.';
+    await aesDec(await bioKek(out), vault.bio.w);   // giải được = đúng Face ID của máy này
+    return true;
+  } catch (e) { return bioErr(e); }
+}
 async function changePin() {
-  const old = await showPin({ title: 'Nhập mã PIN hiện tại', cancel: true, check: async p => (await tryPin(p)) ? true : 'Sai mã PIN.' });
+  // xác nhận bằng mã PIN hiện tại, hoặc Face ID (nếu đã bật) khi quên mã PIN
+  const old = await showPin({ title: 'Nhập mã PIN hiện tại', sub: vault.bio ? 'Quên mã PIN: bấm 🙂 để xác nhận bằng Face ID' : '',
+    cancel: true, bio: vault.bio ? verifyBio : null, check: async p => (await tryPin(p)) ? true : 'Sai mã PIN.' });
   if (old == null) return;
   const pin = await askNewPin('Nhập mã PIN mới');
   if (pin == null) return;
