@@ -808,7 +808,7 @@ function fitTree() {
   wrap.style.transform = ''; wrap.style.width = 'max-content';
   const tw = tree.scrollWidth, H = wrap.offsetHeight;
   const availW = out.clientWidth;
-  const availH = window.innerHeight - (out.getBoundingClientRect().top + window.scrollY) - $('nav').offsetHeight - 70;
+  const availH = window.innerHeight - (out.getBoundingClientRect().top + window.scrollY) - $('nav').offsetHeight - 24;
   const s = Math.max(0.55, Math.min(1.8, availW / tw, Math.max(availH, 250) / H));
   const w = Math.max(tw, availW / s);    // sơ đồ hẹp hơn màn hình thì nằm giữa
   wrap.style.width = w + 'px'; wrap.style.transform = `scale(${s})`;
@@ -938,8 +938,7 @@ function viewTree(today) {
   // tree-out: khung cuộn ngang; tree-box: kích thước sau khi phóng to/thu nhỏ; tree-wrap: sơ đồ kích thước gốc (fitTree() tính tỉ lệ)
   let h = `<div class="tree-out"><div class="tree-box"><div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
   for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>Cấp ${L}</span></div>`;
-  h += `<div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div></div>
-    <p class="muted small">Bấm vào một người để xem thông tin. ${howTo} Hàng dài quá màn hình thì vuốt ngang.</p>`;
+  h += `<div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div></div>`;
   const un = data.people.filter(p => T.lv.get(p.id) == null);
   if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2>` + un.map(p => personRow(p, today, true)).join('');
   return h;
