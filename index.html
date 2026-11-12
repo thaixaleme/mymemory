@@ -102,6 +102,9 @@ h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;dis
 
 /* Danh sách người / ngày lễ */
 .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin:8px 0;box-shadow:var(--sh);animation:fadeUp .3s ease-out both}
+.row[data-q]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:transform .15s}
+#view.sorting .row{animation:none}
+.row.drag{position:relative;z-index:10;transition:none;box-shadow:0 14px 28px -8px rgba(0,0,0,.4);opacity:.96}
 .ico-s{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;background:linear-gradient(135deg,#FFE4E6,#F3E8FF)}
 @media (prefers-color-scheme:dark){.ico-s{background:linear-gradient(135deg,#4C0519,#2E1065)}}
 .icons{display:flex;flex-wrap:wrap;gap:6px}
@@ -139,8 +142,6 @@ h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;dis
 .avatar{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:var(--acc)}
 .avatar.dead{background:#6B7280}
 .search{display:block;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
-.avatar.m{background:#3B82F6}
-.avatar.f{background:#EC4899}
 img.avatar{object-fit:cover;width:40px;background:var(--line)}
 img.avatar.dead{filter:grayscale(1)}
 .avatar.big{flex:0 0 76px;width:76px;height:76px;font-size:30px}
@@ -453,8 +454,8 @@ function fmtDate(dt) {
 const lcFirst = s => s ? s.charAt(0).toLowerCase() + s.slice(1) : '';
 const ucFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 const DEF = {
-  b: { s: 'Còn {n} ngày là đến sinh nhật {qh} {ten}', t: 'Hôm nay là sinh nhật {qh} {ten} 🎂', l: 'Sinh nhật {qh} {ten}' },
-  d: { s: 'Còn {n} ngày là đến ngày giỗ {qh} {ten}', t: 'Hôm nay là ngày giỗ {qh} {ten} 🕯️', l: 'Ngày giỗ {qh} {ten}' },
+  b: { s: 'Còn {n} ngày là đến sinh nhật {ten}', t: 'Hôm nay là sinh nhật {ten} 🎂', l: 'Sinh nhật {ten}' },
+  d: { s: 'Còn {n} ngày là đến ngày giỗ {ten}', t: 'Hôm nay là ngày giỗ {ten} 🕯️', l: 'Ngày giỗ {ten}' },
   i: { s: 'Còn {n} ngày là đến {ten}', t: 'Hôm nay là {ten}', l: '{ten}' }
 };
 const ICON = { b: '🎂', d: '🕯️', i: '🎉' };
@@ -481,7 +482,7 @@ function sources(all) {
 function soonOf(r) { return r.soon != null ? r.soon : data.settings.soon; }
 function varsOf(src, o, days) {
   const [d, m, y] = jdToDate(o.jd), L = lunarOf(o.jd);
-  const v = { n: days, ten: src.p ? (src.p.me && src.p.name === 'Tôi' ? 'tôi' : src.p.name) : src.it.name, qh: src.p ? lcFirst(src.p.rel || '') : '', ngay: `${d}/${m}`, am: `${L[0]}/${L[1]}` };
+  const v = { n: days, ten: src.p ? (src.p.me && src.p.name === 'Tôi' ? 'tôi' : src.p.name) : src.it.name, qh: '', ngay: `${d}/${m}`, am: `${L[0]}/${L[1]}` };
   if (src.dt.y) {
     const k = o.yr - src.dt.y;
     if (src.kind === 'b' && k > 0) v.tuoi = k;
@@ -796,11 +797,10 @@ function render() {
   else if (tab === 'items') v.innerHTML = viewItems(today);
   else v.innerHTML = viewSet();
   if (tab === 'set') bindSet();
-  const q = $('#q');
-  if (q) q.oninput = () => filterPeople(q.value);
+  if (tab === 'people' && ui.pv === 'list') bindListDrag();
   fitTree();
 }
-// Sơ đồ vừa màn hình: ít người thì phóng to (tối đa 1.8 lần), nhiều người thì thu nhỏ (tối thiểu 0.55 lần, quá nữa thì vuốt ngang)
+// Sơ đồ vừa màn hình (chừa lề ~10–15%): ít người thì phóng to (tối đa 1.5 lần), nhiều người thì thu nhỏ (tối thiểu 0.55 lần, quá nữa thì vuốt ngang)
 function fitTree() {
   const out = $('.tree-out');
   if (!out) return;
@@ -809,7 +809,7 @@ function fitTree() {
   const tw = tree.scrollWidth, H = wrap.offsetHeight;
   const availW = out.clientWidth;
   const availH = window.innerHeight - (out.getBoundingClientRect().top + window.scrollY) - $('nav').offsetHeight - 24;
-  const s = Math.max(0.55, Math.min(1.8, availW / tw, Math.max(availH, 250) / H));
+  const s = Math.max(0.55, Math.min(1.5, availW * 0.9 / tw, Math.max(availH, 250) * 0.85 / H));
   const w = Math.max(tw, availW / s);    // sơ đồ hẹp hơn màn hình thì nằm giữa
   wrap.style.width = w + 'px'; wrap.style.transform = `scale(${s})`;
   box.style.width = w * s + 'px'; box.style.height = H * s + 'px';
@@ -854,27 +854,77 @@ function viewPeople(today) {
   let h = `<div class="seg">${[['tree', '🌳 Sơ đồ gia đình'], ['list', '📋 Danh sách']].map(([v, t]) =>
     `<button type="button" data-act="pv" data-v="${v}" class="${ui.pv === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   if (ui.pv === 'tree') return h + viewTree(today);
-  h += `<input id="q" class="search" type="search" placeholder="🔍 Tìm theo tên hoặc mối quan hệ">`;
   h += `<button class="btn primary block" data-act="addp">＋ Thêm người</button>`;
   if (!data.people.length) return h + `<div class="empty">Chưa có ai. Bấm <b>＋ Thêm người</b> để thêm vợ, bố mẹ, ông bà…</div>`;
-  const list = [...data.people].sort((a, b) => (b.me - a.me) || (a.dead - b.dead) || (a.rel || '').localeCompare(b.rel || '', 'vi') || a.name.localeCompare(b.name, 'vi'));
-  return h + list.map(p => personRow(p, today)).join('');
+  // thứ tự = thứ tự thêm vào (đổi được bằng cách nhấn giữ rồi kéo)
+  return h + `<p class="muted small">Nhấn giữ một người rồi kéo lên / xuống để sắp xếp lại.</p>` + data.people.map(p => personRow(p, today)).join('');
+}
+/* ----- Sắp xếp danh sách: nhấn giữ 0.45 giây rồi kéo lên / xuống ----- */
+let drag = null, suppressClick = false;
+document.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });   // đang kéo thì không cuộn trang
+function bindListDrag() {
+  document.querySelectorAll('#view .row[data-q]:not(.ro)').forEach(row => row.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    const y0 = e.clientY;
+    const stop = () => { clearTimeout(tm); row.removeEventListener('pointermove', mv); row.removeEventListener('pointerup', stop); row.removeEventListener('pointercancel', stop); };
+    const mv = ev => { if (Math.abs(ev.clientY - y0) > 8) stop(); };   // ngón tay di chuyển ngay = cuộn trang, không phải kéo
+    const tm = setTimeout(() => { stop(); beginDrag(row, y0); }, 450);
+    row.addEventListener('pointermove', mv); row.addEventListener('pointerup', stop); row.addEventListener('pointercancel', stop);
+  }));
+}
+function beginDrag(row, y0) {
+  const rows = [...document.querySelectorAll('#view .row[data-q]')], from = rows.indexOf(row);
+  const rects = rows.map(r => r.getBoundingClientRect()), h = rects[from].height + 8;
+  $('#view').classList.add('sorting'); row.classList.add('drag');
+  if (navigator.vibrate) navigator.vibrate(30);
+  drag = { to: from };
+  const mv = e => {
+    const dy = e.clientY - y0, cy = rects[from].top + rects[from].height / 2 + dy;
+    row.style.transform = `translateY(${dy}px) scale(1.03)`;
+    let to = 0;
+    rows.forEach((r, i) => { if (i !== from && rects[i].top + rects[i].height / 2 < cy) to++; });
+    drag.to = to;
+    rows.forEach((r, i) => {   // các dòng khác nhường chỗ
+      if (i === from) return;
+      const s = from < to && i > from && i <= to ? -h : from > to && i >= to && i < from ? h : 0;
+      r.style.transform = s ? `translateY(${s}px)` : '';
+    });
+  };
+  const up = async () => {
+    document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
+    const to = drag.to; drag = null;
+    suppressClick = true; setTimeout(() => suppressClick = false, 400);   // thả tay không mở màn hình sửa
+    $('#view').classList.remove('sorting');
+    if (to !== from) {
+      const ids = rows.map(r => r.dataset.id), [m] = ids.splice(from, 1);
+      ids.splice(to, 0, m);
+      const byId = new Map(data.people.map(p => [p.id, p]));
+      data.people = ids.map(id => byId.get(id));
+      await save();
+    }
+    render();
+  };
+  document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 }
 function personRow(p, today, ro) {   // ro: chỉ xem (không mở màn hình sửa)
   const s = [];
   if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
   if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
-  return `<div class="row${ro ? ' ro' : ''}" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
+  return `<div class="row${ro ? ' ro' : ''}" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc(p.name.toLowerCase())}">
     ${avHtml(p, 'avatar')}
-    <div class="grow"><div class="t">${esc(p.name)}${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
+    <div class="grow"><div class="t">${esc(p.name)}${p.me ? '<span class="chip">Tôi</span>' : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
     <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
 }
-// Ảnh đại diện: có ảnh thì hiện ảnh, không thì chữ cái đầu của tên (màu theo giới tính, xám nếu đã mất)
+// Ảnh đại diện: có ảnh thì hiện ảnh, không thì chữ cái đầu của tên.
+// Màu nền chọn theo id của người (mỗi người 1 màu cố định), xám nếu đã mất.
+const AVC = ['#F43F5E', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
 function avHtml(p, base) {
-  const cls = base + (p.dead ? ' dead' : p.sex ? ' ' + p.sex : '');
+  const cls = base + (p.dead ? ' dead' : '');
   if (p.photo) return `<img class="${cls}" src="${esc(p.photo)}" alt="">`;
+  let hs = 0;
+  for (const ch of String(p.id || p.name || '')) hs = (hs * 31 + ch.charCodeAt(0)) >>> 0;
   const n = (p.name || '?').trim().split(/\s+/).pop() || '?';
-  return `<div class="${cls}">${esc(n.charAt(0).toUpperCase())}</div>`;
+  return `<div class="${cls}"${p.dead ? '' : ` style="background:${AVC[hs % AVC.length]}"`}>${esc(n.charAt(0).toUpperCase())}</div>`;
 }
 
 /* ----- Sơ đồ gia đình -----
@@ -954,12 +1004,8 @@ function unitHtml(h, T, occ) {
 function tpHtml(p, occ) {
   const o = occ.get(p.id);
   const st = o ? `<span class="${o.cls}">${o.src.kind === 'd' ? '🕯️' : '🎂'} ${o.days === 0 ? 'Hôm nay' : 'còn ' + o.days + ' ngày'}</span>`
-    : esc(p.rel || (p.dead ? 'Đã mất' : ''));
+    : p.dead ? 'Đã mất' : (a => a != null ? a + ' tuổi' : '')(ageNow(p, todayJd()));
   return `<div class="tp" data-act="edit" data-kind="p" data-id="${esc(p.id)}">${avHtml(p, 'avatar')}<div class="nm">${esc(p.name)}</div><div class="st">${st}</div></div>`;
-}
-function filterPeople(q) {
-  q = q.trim().toLowerCase();
-  document.querySelectorAll('#view .row[data-q]').forEach(r => r.hidden = q && !r.dataset.q.includes(q));
 }
 function viewItems(today) {
   let h = `<button class="btn primary block" data-act="addi">＋ Thêm ngày lễ / kỷ niệm</button>
@@ -976,6 +1022,7 @@ function viewItems(today) {
   return h;
 }
 $('#view').addEventListener('click', async e => {
+  if (suppressClick) return;
   const t = e.target.closest('[data-act]');
   if (!t) return;
   const a = t.dataset.act;
@@ -1091,7 +1138,7 @@ function bindDateBox(key, onChange) {
 }
 
 // Cài đặt nhắc nhở cho 1 ngày: bật/tắt, số ngày báo trước, câu nhắc
-const PH = [['{n}', 'số ngày còn lại'], ['{ten}', 'tên'], ['{qh}', 'mối quan hệ'], ['{tuoi}', 'tuổi'], ['{nam}', 'năm thứ'], ['{ngay}', 'ngày dương'], ['{am}', 'ngày âm']];
+const PH = [['{n}', 'số ngày còn lại'], ['{ten}', 'tên'], ['{tuoi}', 'tuổi'], ['{nam}', 'năm thứ'], ['{ngay}', 'ngày dương'], ['{am}', 'ngày âm']];
 function remindHtml(key, r, kind) {
   const D = DEF[kind];
   return `<div class="rbox" id="rb_${key}">
@@ -1134,9 +1181,9 @@ function bindRemind(key, kind, ctx) {
   b.upd = upd;
   upd();
 }
-// Giá trị mẫu cho phần xem trước (lấy từ ô tên, mối quan hệ, ngày đang nhập)
+// Giá trị mẫu cho phần xem trước (lấy từ ô tên, ngày đang nhập)
 function sampleVars(kind, name, rel, dt) {
-  const v = { ten: name || 'Tên', qh: lcFirst(rel || '') };
+  const v = { ten: name || 'Tên', qh: '' };
   if (dt && dt.c !== 'w') {
     const o = nextOcc(dt, todayJd());
     if (o) {
@@ -1148,9 +1195,6 @@ function sampleVars(kind, name, rel, dt) {
   return v;
 }
 
-const RELS = ['Vợ', 'Chồng', 'Con trai', 'Con gái', 'Bố', 'Mẹ', 'Ông nội', 'Bà nội', 'Ông ngoại', 'Bà ngoại', 'Bố vợ', 'Mẹ vợ', 'Bố chồng', 'Mẹ chồng',
-  'Anh trai', 'Chị gái', 'Em trai', 'Em gái', 'Bác', 'Chú', 'Thím', 'Cô', 'Dượng', 'Dì', 'Cậu', 'Mợ', 'Anh rể', 'Chị dâu', 'Em rể', 'Em dâu',
-  'Cháu', 'Cụ', 'Bạn', 'Đồng nghiệp', 'Thầy', 'Cô giáo'];
 // Khung nhỏ thông tin 1 người (chỉ xem, không sửa). Sửa: vào Danh sách.
 function viewPerson(p) {
   if (!p) return;
@@ -1175,7 +1219,7 @@ function viewPerson(p) {
   if (!rows.length) rows.push(['ℹ️', '', '<span class="muted">Chưa nhập ngày sinh / ngày mất.</span>']);
   $('#popIn').innerHTML = `<button type="button" class="pop-x" id="popX" aria-label="Đóng">✕</button>
     <div class="pv-top">${avHtml(p, 'avatar')}<h2>${esc(p.name)}</h2>
-      <div>${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div></div>
+      <div>${p.me ? '<span class="chip">Tôi</span>' : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div></div>
     <div class="info">${rows.map(([k, l, v]) => `<div class="ir"><div class="k">${k}</div><div class="v">${l ? `<span class="l">${l}</span>` : ''}${v}</div></div>`).join('')}</div>`;
   $('#pop').hidden = false;
   $('#popX').onclick = closePop;
@@ -1201,7 +1245,7 @@ function loadPhoto(file) {
 function editPerson(p, preset) {
   const isNew = !p;
   p = p || newPerson();
-  let photo = p.photo || '', sex = p.sex || '';
+  let photo = p.photo || '';
   const html = `
     <div class="line" style="justify-content:flex-start;gap:14px">
       <div id="pAv"></div>
@@ -1212,11 +1256,7 @@ function editPerson(p, preset) {
       <input type="file" id="pFile" accept="image/*" hidden>
     </div>
     <label class="f"><span class="l">Tên *</span><input class="inp" id="pName" type="text" value="${esc(p.name)}" placeholder="Ví dụ: Lan"></label>
-    <label class="f"><span class="l">Mối quan hệ với tôi</span><input class="inp" id="pRel" type="text" list="relList" value="${esc(p.rel)}" placeholder="Ví dụ: Vợ, Bố, Ông nội…"></label>
     <label class="chk"><input type="checkbox" id="pMe"${p.me ? ' checked' : ''}> 👤 Người này là tôi (ô có viền xanh trong sơ đồ)</label>
-    <datalist id="relList">${RELS.map(r => `<option value="${r}">`).join('')}</datalist>
-    <div class="f"><span class="l">Giới tính</span><div class="seg" id="pSex">${[['m', 'Nam'], ['f', 'Nữ'], ['', 'Không rõ']].map(([v, t]) =>
-      `<button type="button" data-v="${v}" class="${sex === v ? 'on' : ''}">${t}</button>`).join('')}</div></div>
     <div class="grp"><h3>🌳 Vị trí trong sơ đồ gia đình</h3>
       <label class="f"><span class="l">Cấp</span><select class="inp" id="tLv"></select></label>
       <label class="f" id="tTypeBox"><span class="l">Nối với</span><select class="inp" id="tType"></select></label>
@@ -1249,7 +1289,7 @@ function editPerson(p, preset) {
       const T2 = treeInfo();
       data.people.forEach(x => { if (x !== p && isHead(x, T2) && !(x.par && T2.byId.has(x.par))) x.lv = T2.lv.get(x.id) + 1; });
     }
-    Object.assign(p, { name, rel: $('#pRel').value.trim(), note: $('#pNote').value.trim(), sex, photo, birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
+    Object.assign(p, { name, note: $('#pNote').value.trim(), photo, birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
     // vị trí trong sơ đồ
     if (!L) { if (!isNew) detach(p); Object.assign(p, { lv: null, par: null, sp: null }); }
     else if (type === 'root') Object.assign(p, { lv: L, par: null, sp: null });
@@ -1266,7 +1306,7 @@ function editPerson(p, preset) {
   // ảnh + giới tính
   const hasDeath = () => { const r = dateBoxGet('death', false); return r.ok && !!r.dt; };
   const updAv = () => {
-    $('#pAv').innerHTML = avHtml({ name: $('#pName').value || '?', sex, photo, dead: hasDeath() }, 'avatar big');
+    $('#pAv').innerHTML = avHtml({ id: p.id, name: $('#pName').value || '?', photo, dead: hasDeath() }, 'avatar big');
     $('#pPhotoDel').hidden = !photo;
   };
   $('#pPhoto').onclick = () => $('#pFile').click();
@@ -1276,11 +1316,6 @@ function editPerson(p, preset) {
     try { photo = await loadPhoto(f); updAv(); } catch (err) { alert('Không đọc được ảnh này.'); }
   };
   $('#pPhotoDel').onclick = () => { photo = ''; updAv(); };
-  $('#pSex').querySelectorAll('button').forEach(b => b.onclick = () => {
-    sex = b.dataset.v;
-    $('#pSex').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-    updAv();
-  });
   // vị trí trong sơ đồ: chọn cấp → chọn "là con của" (cấp trên) hoặc "là vợ/chồng của" (cùng cấp)
   const T = treeInfo(), rows = treeRows(T), desc = descendants(p);
   const cur = { type: p.sp ? 'sp' : p.par ? 'par' : 'root', tgt: p.sp || p.par || '' };
@@ -1321,8 +1356,8 @@ function editPerson(p, preset) {
   lvSel.onchange = () => { tSel.innerHTML = ''; updTree(); };
   tSel.onchange = () => { gSel.innerHTML = ''; updTree(); };
   updTree();
-  const ctxB = () => sampleVars('b', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('birth', false).dt);
-  const ctxD = () => sampleVars('d', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('death', false).dt);
+  const ctxB = () => sampleVars('b', $('#pName').value.trim(), '', dateBoxGet('birth', false).dt);
+  const ctxD = () => sampleVars('d', $('#pName').value.trim(), '', dateBoxGet('death', false).dt);
   bindRemind('br', 'b', ctxB); bindRemind('dr', 'd', ctxD);
   const updAll = () => { $('#rb_br').upd(); $('#rb_dr').upd(); };
   // nhập / xóa ngày mất: đổi xám, hiện / ẩn phần nhắc giỗ ngay
@@ -1336,7 +1371,7 @@ function editPerson(p, preset) {
     wasDead = dead;
   };
   bindDateBox('birth', updAll); bindDateBox('death', () => { updAll(); updDead(); });
-  $('#pName').oninput = () => { updAll(); updAv(); }; $('#pRel').oninput = updAll;
+  $('#pName').oninput = () => { updAll(); updAv(); };
   updAv();
   if ($('#pDel')) $('#pDel').onclick = async () => {
     if (!confirm(`Xóa "${p.name}"? Không khôi phục lại được.`)) return;
