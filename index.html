@@ -108,6 +108,28 @@ h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;dis
 .icons button{width:42px;height:42px;font-size:22px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
 .icons button.on{border:2px solid var(--acc);background:var(--today-bg)}
 .grp{box-shadow:var(--sh)}
+/* Khung nhỏ thông tin 1 người */
+#pop{position:fixed;inset:0;z-index:30;background:rgba(20,8,14,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .15s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.pop-in{position:relative;width:100%;max-width:340px;max-height:80vh;overflow:auto;background:var(--card);border-radius:22px;padding:8px 16px 12px;
+  box-shadow:0 20px 40px -12px rgba(0,0,0,.45);animation:popIn .2s ease-out}
+.pop-x{position:absolute;right:10px;top:10px;width:32px;height:32px;border:0;border-radius:50%;background:var(--line);font-size:15px}
+.pv-top{text-align:center;padding:14px 0 6px}
+.pv-top .avatar{width:84px;height:84px;flex:none;margin:0 auto;font-size:34px;box-shadow:0 6px 18px -6px rgba(190,18,60,.6);border:3px solid var(--card)}
+.pv-top h2{margin:8px 0 6px;font-size:21px}
+.pv-top .chip{margin:0 3px}
+.info{padding:0}
+.ir{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ir:first-child{border-top:0}
+.ir .k{flex:0 0 28px;font-size:20px;line-height:1.3}
+.ir .v{flex:1;min-width:0}
+.ir .v .l{display:block;font-size:12px;color:var(--muted);font-weight:700}
+.ir .v small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.ir .dn{color:var(--acc)}
+.pchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.pchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:22px;padding:3px 12px 3px 3px;background:var(--field);font-size:14px;font-weight:600}
+.pchip .avatar{width:30px;height:30px;flex:none;font-size:13px}
 .row .grow{flex:1;min-width:0}
 .row .t{font-weight:700}
 .row .s{font-size:13px;color:var(--muted)}
@@ -254,6 +276,9 @@ textarea.inp{min-height:70px;resize:vertical}
     </div>
   </div>
 </div>
+
+<!-- Khung nhỏ thông tin 1 người -->
+<div id="pop" hidden><div class="pop-in" id="popIn"></div></div>
 
 <div id="toast"></div>
 
@@ -719,7 +744,7 @@ async function start() {
 function lock() {
   if (locked) return;
   locked = true; rawKey = null; dataKey = null; data = null;
-  $('#sheet').hidden = true; $('#view').innerHTML = ''; $('#appScr').hidden = true;
+  $('#sheet').hidden = true; closePop(); $('#view').innerHTML = ''; $('#appScr').hidden = true;
   start();
 }
 function enterApp() {
@@ -747,7 +772,7 @@ let tab = ui.tab;
 function saveUi() { ui.tab = tab; try { localStorage.setItem(LS_UI, JSON.stringify(ui)); } catch (e) {} }
 let toastT = 0;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; saveUi(); render(); window.scrollTo(0, 0); });
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === 'people') ui.pv = 'tree'; saveUi(); render(); window.scrollTo(0, 0); });
 $('#btnLock').onclick = () => lock();
 $('#btnAdd').onclick = () => tab === 'items' ? editItem(null) : editPerson(null);
 
@@ -758,7 +783,7 @@ function render() {
   const near = occ.filter(o => o.days <= o.soon).length;
   const navUp = document.querySelector('nav [data-tab=up]');
   navUp.innerHTML = '<span>📅</span><i>Sắp tới</i>' + (near ? `<b class="dot">${near}</b>` : '');
-  $('#btnAdd').hidden = tab === 'up' || tab === 'set';
+  $('#btnAdd').hidden = tab === 'up' || tab === 'set' || (tab === 'people' && ui.pv === 'tree');   // sơ đồ: chỉ xem
   const v = $('#view');
   if (tab === 'up') v.innerHTML = viewUp(today, occ);
   else if (tab === 'people') v.innerHTML = viewPeople(today);
@@ -813,11 +838,11 @@ function viewPeople(today) {
   const list = [...data.people].sort((a, b) => (b.me - a.me) || (a.dead - b.dead) || (a.rel || '').localeCompare(b.rel || '', 'vi') || a.name.localeCompare(b.name, 'vi'));
   return h + list.map(p => personRow(p, today)).join('');
 }
-function personRow(p, today) {
+function personRow(p, today, ro) {   // ro: chỉ xem (không mở màn hình sửa)
   const s = [];
   if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
   if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
-  return `<div class="row" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
+  return `<div class="row${ro ? ' ro' : ''}" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
     ${avHtml(p, 'avatar')}
     <div class="grow"><div class="t">${esc(p.name)}${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
     <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
@@ -854,7 +879,13 @@ const isHead = (p, T) => T.lv.get(p.id) != null && !(p.sp && T.byId.has(p.sp));
 const headsAt = (T, L) => data.people.filter(p => isHead(p, T) && T.lv.get(p.id) === L);
 const spousesOf = h => data.people.filter(x => x.sp === h.id);
 const unitLabel = h => [h, ...spousesOf(h)].map(x => x.name).join(' và ');
-function treeRows(T) { return Math.max(data.settings.treeRows || 1, ...[...T.lv.values()].filter(Boolean)); }
+function treeRows(T) { return Math.max(1, ...[...T.lv.values()].filter(Boolean)); }   // số cấp = cấp lớn nhất đang có người
+function normalizeTree() {   // cấp 1 không có ai thì đẩy cả sơ đồ lên (luôn bắt đầu từ cấp 1)
+  const T = treeInfo(), vals = [...T.lv.values()].filter(Boolean);
+  if (!vals.length) return;
+  const mn = Math.min(...vals);
+  if (mn > 1) data.people.forEach(p => { if (isHead(p, T) && !(p.par && T.byId.has(p.par))) p.lv = T.lv.get(p.id) - (mn - 1); });
+}
 function sortP(list) {   // anh chị em: theo ô "thứ tự", rồi năm sinh, rồi thứ tự thêm vào
   const idx = new Map(data.people.map((p, i) => [p.id, i]));
   return list.sort((a, b) => (a.ord || 99) - (b.ord || 99) || ((a.birth && a.birth.y) || 9999) - ((b.birth && b.birth.y) || 9999) || idx.get(a.id) - idx.get(b.id));
@@ -871,24 +902,23 @@ function detach(p) {   // bỏ p khỏi sơ đồ: con và vợ/chồng của p 
   const T = treeInfo();
   for (const x of data.people) if (x !== p && (x.par === p.id || x.sp === p.id)) { x.lv = T.lv.get(x.id); x.par = null; x.sp = null; }
 }
+// Sơ đồ chỉ để xem. Thêm / sửa / đổi cấp: vào Danh sách → bấm vào người → mục "Vị trí trong sơ đồ".
 function viewTree(today) {
-  if (!data.people.some(p => p.me)) {
-    return `<div class="card" style="margin-top:12px"><b>Bắt đầu sơ đồ gia đình</b>
-      <p class="muted">Trước tiên chọn <b>Tôi</b> ở cấp mấy. Cấp 1 là hàng trên cùng (ví dụ bố mẹ). Sau này thêm cấp trên (ông bà) được.</p>
-      <div style="display:flex;gap:8px">${[1, 2, 3].map(l => `<button class="btn" style="flex:1" data-act="mkme" data-lv="${l}">Tôi ở cấp ${l}</button>`).join('')}</div></div>`;
-  }
   const T = treeInfo(), rows = treeRows(T);
+  const howTo = `Muốn thêm hoặc sửa: vào <b>📋 Danh sách</b>, bấm vào người đó, chọn cấp ở mục <b>🌳 Vị trí trong sơ đồ</b> rồi bấm <b>Lưu</b>.`;
+  if (![...T.lv.values()].some(Boolean)) {
+    return `<div class="card" style="margin-top:12px"><b>Chưa có ai trong sơ đồ</b><p class="muted">${howTo}
+      Cấp 1 là hàng trên cùng (ví dụ bố mẹ). Đánh dấu "Người này là tôi" để ô của anh có viền xanh.</p></div>`;
+  }
   const occ = new Map();   // người đang có sinh nhật / ngày giỗ sắp đến
   for (const o of allOcc(today)) if (o.src.p && o.days <= o.soon && !occ.has(o.src.p.id)) occ.set(o.src.p.id, o);
   const roots = sortP(data.people.filter(p => isHead(p, T) && !(p.par && T.byId.has(p.par)))).sort((a, b) => T.lv.get(a.id) - T.lv.get(b.id));
-  let h = `<button class="btn small block" data-act="lvup">＋ Thêm cấp trên</button><div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
-  for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>Cấp ${L}</span><button data-act="addlv" data-lv="${L}">＋ Thêm</button></div>`;
-  h += `<div class="tree-sc"><div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div>`;
-  const lastEmpty = rows > 1 && ![...T.lv.values()].includes(rows);
-  h += `<div style="display:flex;gap:8px"><button class="btn small" style="flex:1" data-act="lvadd">＋ Thêm cấp mới</button>${lastEmpty ? '<button class="btn small danger" data-act="lvdel">Bỏ cấp cuối</button>' : ''}</div>
-    <p class="muted small">Bấm vào một người để sửa. Hàng dài quá màn hình thì vuốt ngang.</p>`;
+  let h = `<div class="tree-wrap" style="height:${rows * TP - TP + TL + TC + 8}px">`;
+  for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>Cấp ${L}</span></div>`;
+  h += `<div class="tree-sc"><div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div>
+    <p class="muted small">Bấm vào một người để xem thông tin. ${howTo} Hàng dài quá màn hình thì vuốt ngang.</p>`;
   const un = data.people.filter(p => T.lv.get(p.id) == null);
-  if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2><p class="muted small">Bấm vào người để chọn cấp và nối với người khác.</p>` + un.map(p => personRow(p, today)).join('');
+  if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2>` + un.map(p => personRow(p, today, true)).join('');
   return h;
 }
 function unitHtml(h, T, occ) {
@@ -936,31 +966,20 @@ $('#view').addEventListener('click', async e => {
   if (a === 'addp') return editPerson(null);
   if (a === 'addi') return editItem(null);
   if (a === 'pv') { ui.pv = t.dataset.v; saveUi(); return render(); }
-  if (a === 'addlv') return editPerson(null, { lv: +t.dataset.lv });
-  if (['mkme', 'lvup', 'lvadd', 'lvdel'].includes(a)) {
-    const T = treeInfo(), rows = treeRows(T), s = data.settings;
-    if (a === 'mkme') {   // tạo ô "Tôi"
-      const L = +t.dataset.lv;
-      data.people.push(Object.assign(newPerson(), { name: 'Tôi', me: true, lv: L }));
-      s.treeRows = Math.max(rows, L + 1);
-    } else if (a === 'lvup') {   // thêm cấp trên: mọi người đứng riêng xuống 1 cấp
-      data.people.forEach(p => { if (T.lv.get(p.id) != null && !(p.sp && T.byId.has(p.sp)) && !(p.par && T.byId.has(p.par))) p.lv = T.lv.get(p.id) + 1; });
-      s.treeRows = rows + 1;
-    } else if (a === 'lvadd') s.treeRows = rows + 1;
-    else s.treeRows = rows - 1;
-    await save(); render();
-    return;
-  }
   if (a === 'edit') {
     if (t.dataset.kind === 'i') editItem(data.items.find(x => x.id === t.dataset.id));
-    else editPerson(data.people.find(x => x.id === t.dataset.id));
+    // danh sách: mở màn hình sửa; sơ đồ và tab Sắp tới: chỉ xem (khung nhỏ)
+    else if (t.classList.contains('row') && !t.classList.contains('ro')) editPerson(data.people.find(x => x.id === t.dataset.id));
+    else viewPerson(data.people.find(x => x.id === t.dataset.id));
   }
 });
 
 /* ----- Bảng thêm / sửa ----- */
 let sheetSave = null;
-function openSheet(title, html, onSave) {
+function openSheet(title, html, onSave, saveLabel = 'Lưu', cancelLabel = 'Hủy') {
   $('#shTitle').textContent = title;
+  $('#shSave').textContent = saveLabel;
+  $('#shCancel').textContent = cancelLabel;
   $('#shBody').innerHTML = html;
   sheetSave = onSave;
   $('#sheet').hidden = false;
@@ -1110,6 +1129,38 @@ function sampleVars(kind, name, rel, dt) {
 const RELS = ['Vợ', 'Chồng', 'Con trai', 'Con gái', 'Bố', 'Mẹ', 'Ông nội', 'Bà nội', 'Ông ngoại', 'Bà ngoại', 'Bố vợ', 'Mẹ vợ', 'Bố chồng', 'Mẹ chồng',
   'Anh trai', 'Chị gái', 'Em trai', 'Em gái', 'Bác', 'Chú', 'Thím', 'Cô', 'Dượng', 'Dì', 'Cậu', 'Mợ', 'Anh rể', 'Chị dâu', 'Em rể', 'Em dâu',
   'Cháu', 'Cụ', 'Bạn', 'Đồng nghiệp', 'Thầy', 'Cô giáo'];
+// Khung nhỏ thông tin 1 người (chỉ xem, không sửa). Sửa: vào Danh sách.
+function viewPerson(p) {
+  if (!p) return;
+  const today = todayJd();
+  const nextTxt = (dt, label) => {   // "Sinh nhật sắp tới: Chủ nhật, 15/11/2026 · còn 3 ngày"
+    const o = nextOcc(dt, today);
+    if (!o) return '';
+    const n = o.jd - today;
+    return `${label}: ${WD[wdOf(o.jd)]}, ${jdToDate(o.jd).join('/')} · <b class="dn">${daysText(n)}</b>` +
+      (dt.y && o.yr - dt.y > 0 ? (label.startsWith('Giỗ') ? ` · ${lcFirst(giText(o.yr - dt.y))}` : ` · tròn ${o.yr - dt.y} tuổi`) : '');
+  };
+  const rows = [];
+  if (p.birth) {
+    const a = p.dead ? null : ageNow(p, today);
+    rows.push(['🎂', 'Ngày sinh', `${esc(fmtDate(p.birth))}${a != null ? ` (${a} tuổi)` : ''}` + (p.dead ? '' : `<small>${nextTxt(p.birth, 'Sinh nhật sắp tới')}</small>`)]);
+  }
+  if (p.death) {
+    const conv = p.death.c === 'l' && p.death.y ? `<small>= Dương lịch ${lunar2solar(p.death.d, p.death.m, p.death.y, p.death.lp ? 1 : 0).join('/')}</small>` : '';
+    rows.push(['🕯️', 'Ngày mất', esc(fmtDate(p.death)) + conv + `<small>${nextTxt(p.death, 'Giỗ sắp tới')}</small>`]);
+  }
+  if (p.note) rows.push(['📝', 'Ghi chú', esc(p.note).replace(/\n/g, '<br>')]);
+  if (!rows.length) rows.push(['ℹ️', '', '<span class="muted">Chưa nhập ngày sinh / ngày mất.</span>']);
+  $('#popIn').innerHTML = `<button type="button" class="pop-x" id="popX" aria-label="Đóng">✕</button>
+    <div class="pv-top">${avHtml(p, 'avatar')}<h2>${esc(p.name)}</h2>
+      <div>${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div></div>
+    <div class="info">${rows.map(([k, l, v]) => `<div class="ir"><div class="k">${k}</div><div class="v">${l ? `<span class="l">${l}</span>` : ''}${v}</div></div>`).join('')}</div>`;
+  $('#pop').hidden = false;
+  $('#popX').onclick = closePop;
+}
+function closePop() { $('#pop').hidden = true; $('#popIn').innerHTML = ''; }
+$('#pop').addEventListener('click', e => { if (e.target.id === 'pop') closePop(); });   // bấm ra ngoài khung để đóng
+
 // Ảnh: cắt vuông giữa ảnh, thu nhỏ còn 200x200 (JPEG) rồi lưu chung với dữ liệu (đã mã hóa)
 function loadPhoto(file) {
   return new Promise((resolve, reject) => {
@@ -1140,6 +1191,7 @@ function editPerson(p, preset) {
     </div>
     <label class="f"><span class="l">Tên *</span><input class="inp" id="pName" type="text" value="${esc(p.name)}" placeholder="Ví dụ: Lan"></label>
     <label class="f"><span class="l">Mối quan hệ với tôi</span><input class="inp" id="pRel" type="text" list="relList" value="${esc(p.rel)}" placeholder="Ví dụ: Vợ, Bố, Ông nội…"></label>
+    <label class="chk"><input type="checkbox" id="pMe"${p.me ? ' checked' : ''}> 👤 Người này là tôi (ô có viền xanh trong sơ đồ)</label>
     <datalist id="relList">${RELS.map(r => `<option value="${r}">`).join('')}</datalist>
     <div class="f"><span class="l">Giới tính</span><div class="seg" id="pSex">${[['m', 'Nam'], ['f', 'Nữ'], ['', 'Không rõ']].map(([v, t]) =>
       `<button type="button" data-v="${v}" class="${sex === v ? 'on' : ''}">${t}</button>`).join('')}</div></div>
@@ -1165,9 +1217,16 @@ function editPerson(p, preset) {
     const dd = dateBoxGet('death', false);   // đã mất = có nhập ngày mất
     if (!dd.ok) { alert('Ngày mất: ' + dd.err); return false; }
     const dead = !!dd.dt;
-    const L = +$('#tLv').value || 0, type = L ? $('#tType').value : '', tgt = $('#tTgt').value;
+    const lvV = $('#tLv').value, L = lvOf(lvV), type = L ? $('#tType').value : '', tgt = $('#tTgt').value;
     if (L && type !== 'root' && !tgt) { alert('Chưa chọn người để nối.'); return false; }
     p.ord = parseInt($('#tOrd').value, 10) || null;
+    // "Người này là tôi": chỉ 1 người
+    if ($('#pMe').checked) data.people.forEach(x => { if (x !== p) x.me = false; });
+    p.me = $('#pMe').checked;
+    if (lvV === 'top') {   // cấp mới trên cùng: mọi người đứng riêng khác lùi xuống 1 cấp
+      const T2 = treeInfo();
+      data.people.forEach(x => { if (x !== p && isHead(x, T2) && !(x.par && T2.byId.has(x.par))) x.lv = T2.lv.get(x.id) + 1; });
+    }
     Object.assign(p, { name, rel: $('#pRel').value.trim(), note: $('#pNote').value.trim(), sex, photo, birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
     // vị trí trong sơ đồ
     if (!L) { if (!isNew) detach(p); Object.assign(p, { lv: null, par: null, sp: null }); }
@@ -1177,8 +1236,8 @@ function editPerson(p, preset) {
       data.people.forEach(x => { if (x.par === p.id) x.par = tgt; });
       Object.assign(p, { lv: null, par: null, sp: tgt });
     }
-    if (L) data.settings.treeRows = Math.max(data.settings.treeRows, L);
     if (isNew) data.people.push(p);
+    normalizeTree();
     await save();
     toast('Đã lưu');
   });
@@ -1206,14 +1265,20 @@ function editPerson(p, preset) {
   let lv0 = T.lv.get(p.id) || null;
   if (isNew && preset && preset.lv) { lv0 = preset.lv; cur.type = 'par'; }
   const lvSel = $('#tLv'), tSel = $('#tType'), gSel = $('#tTgt');
-  lvSel.innerHTML = '<option value="">Chưa xếp vào sơ đồ</option>' + [...Array(rows)].map((_, i) => `<option value="${i + 1}">Cấp ${i + 1}</option>`).join('');
+  const hasTree = [...T.lv.values()].some(Boolean);
+  lvSel.innerHTML = '<option value="">Chưa xếp vào sơ đồ</option>' +
+    (hasTree ? [...Array(rows)].map((_, i) => `<option value="${i + 1}">Cấp ${i + 1}</option>`).join('') +
+      `<option value="new">＋ Thêm cấp mới ở dưới (Cấp ${rows + 1})</option><option value="top">＋ Thêm cấp mới trên cùng (các cấp khác lùi xuống 1)</option>`
+      : '<option value="1">Cấp 1 (hàng trên cùng)</option>');
   lvSel.value = lv0 || '';
+  // giá trị ô "Cấp" → số cấp ('top' = cấp mới trên cùng: tính là cấp 1, không nối được với ai)
+  const lvOf = v => v === 'top' ? 1 : v === 'new' ? rows + 1 : +v || 0;
   const updTree = () => {
-    const L = +lvSel.value || 0;
+    const v = lvSel.value, L = lvOf(v);
     $('#tTypeBox').hidden = $('#tTgtBox').hidden = $('#tOrdBox').hidden = !L;
     if (!L) { $('#tNote').textContent = 'Không hiện trong sơ đồ (vẫn có trong danh sách và vẫn nhắc nhở).'; return; }
     const parOpts = L > 1 ? headsAt(T, L - 1).filter(h => !desc.has(h.id)) : [];
-    const spOpts = spousesOf(p).length ? [] : headsAt(T, L).filter(h => !desc.has(h.id));
+    const spOpts = v === 'top' || spousesOf(p).length ? [] : headsAt(T, L).filter(h => !desc.has(h.id));
     const types = [];
     if (parOpts.length) types.push(['par', `Là con của (cấp ${L - 1})`]);
     if (spOpts.length) types.push(['sp', `Là vợ/chồng của (cấp ${L})`]);
@@ -1228,7 +1293,8 @@ function editPerson(p, preset) {
     gSel.innerHTML = opts.map(h => `<option value="${esc(h.id)}">${esc(type === 'par' ? unitLabel(h) : h.name)}</option>`).join('');
     if (opts.some(h => h.id === keepT)) gSel.value = keepT;
     $('#tOrdBox').hidden = type === 'sp';
-    $('#tNote').textContent = type === 'root' ? 'Hiện ở cấp này, không có đường nối lên cấp trên.' : '';
+    $('#tNote').textContent = v === 'top' ? 'Thêm 1 hàng mới ở trên cùng. Các cấp hiện có lùi xuống 1 (cấp 1 thành cấp 2…).'
+      : type === 'root' ? 'Hiện ở cấp này, không có đường nối lên cấp trên.' : '';
   };
   lvSel.onchange = () => { tSel.innerHTML = ''; updTree(); };
   tSel.onchange = () => { gSel.innerHTML = ''; updTree(); };
@@ -1254,6 +1320,7 @@ function editPerson(p, preset) {
     if (!confirm(`Xóa "${p.name}"? Không khôi phục lại được.`)) return;
     detach(p);
     data.people = data.people.filter(x => x !== p);
+    normalizeTree();
     await save(); closeSheet(); render(); toast('Đã xóa');
   };
 }
