@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MyMemory">
+<meta name="theme-color" content="#E11D48">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>MyMemory</title>
+<style>
+/* Tông màu hồng đỏ (--acc). Màu theo mức gần: đỏ = hôm nay, cam = còn 1–3 ngày, vàng = sắp đến */
+:root{--acc:#E11D48;--acc2:#BE123C;--bg:#FFF5F7;--card:#fff;--text:#2B1720;--muted:#8A6B77;--line:#F3D9E1;--field:#FFF9FA;
+  --today:#EF4444;--today-bg:#FEE2E2;--near:#F97316;--near-bg:#FFEDD5;--soon:#EAB308;--soon-bg:#FEF9C3;--danger:#DC2626;--ok:#16A34A}
+@media (prefers-color-scheme:dark){
+:root{--bg:#1A0F13;--card:#26171D;--text:#F6E9EE;--muted:#B9949F;--line:#3D2630;--field:#1F1217;
+  --today-bg:#4A1616;--near-bg:#45250F;--soon-bg:#3D3510;--danger:#F87171}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+button{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer;-webkit-tap-highlight-color:transparent}
+input,select,textarea{font:inherit;font-size:16px;color:var(--text)}
+.muted{color:var(--muted);font-size:14px}
+.small{font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:36px 10px}
+
+/* ===== Header + nội dung + thanh tab dưới ===== */
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;
+  background:linear-gradient(180deg,#F43F5E,var(--acc));color:#fff;box-shadow:0 4px 14px -6px rgba(190,18,60,.6)}
+header img{width:30px;height:30px;border-radius:8px}
+header h1{flex:1;margin:0;font-size:20px;font-weight:800}
+header .hbtn{background:rgba(255,255,255,.22);border:0;color:#fff;height:36px;min-width:36px;border-radius:10px;font-size:17px;padding:0 10px}
+main{max-width:760px;margin:0 auto;padding:12px 12px calc(90px + env(safe-area-inset-bottom))}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:7px 0 6px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px}
+nav button span{font-size:22px;line-height:1.1;filter:grayscale(1);opacity:.7}
+nav button.on{color:var(--acc);font-weight:700}
+nav button.on span{filter:none;opacity:1}
+nav button{position:relative}
+nav button i{font-style:normal}
+nav .dot{position:absolute;top:3px;left:calc(50% + 8px);background:var(--today);color:#fff;font-size:10px;font-weight:700;border-radius:9px;padding:0 5px;min-width:16px}
+
+h2.sec{font-size:15px;margin:18px 2px 8px;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;font-weight:700}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.danger{color:var(--danger)}
+.btn.block{display:block;width:100%;margin-top:10px}
+.btn.small{padding:7px 12px;font-size:14px}
+
+/* Thẻ "hôm nay" ở trên cùng */
+.todaybox{background:linear-gradient(135deg,#FFE4E6,#FCE7F3);border:0;color:#3B0A1A}
+@media (prefers-color-scheme:dark){.todaybox{background:linear-gradient(135deg,#4C0519,#3B0764);color:#FCE7F3}}
+.todaybox .big{font-size:20px;font-weight:800}
+.banner{margin-top:10px;border-radius:14px;padding:12px 14px;font-weight:700}
+.banner.today{background:var(--today);color:#fff}
+.banner.soon{background:var(--near-bg);color:var(--text);border:1px solid var(--near)}
+.banner.none{background:var(--card);border:1px dashed var(--line);color:var(--muted);font-weight:500}
+
+/* Thẻ 1 ngày cần nhớ */
+.ev{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.ev.today{background:var(--today-bg);border-color:var(--today)}
+.ev.near{background:var(--near-bg);border-color:var(--near)}
+.ev.soon{background:var(--soon-bg);border-color:var(--soon)}
+.ev-date{flex:0 0 54px;text-align:center;line-height:1.1}
+.ev-date b{display:block;font-size:24px}
+.ev-date span,.ev-date small{display:block;font-size:12px;color:var(--muted)}
+.ev-body{flex:1;min-width:0}
+.ev-t{font-weight:700}
+.ev-i{font-size:13px;color:var(--muted);margin-top:2px}
+.ev-n{flex:0 0 auto;font-size:13px;font-weight:800;text-align:right;white-space:nowrap}
+.ev.today .ev-n{color:var(--today)}
+.ev.near .ev-n{color:var(--near)}
+.ev.soon .ev-n{color:#A16207}
+@media (prefers-color-scheme:dark){.ev.soon .ev-n{color:var(--soon)}}
+
+/* Danh sách người / ngày lễ */
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-weight:700}
+.row .s{font-size:13px;color:var(--muted)}
+.row.off{opacity:.55}
+.chip{display:inline-block;font-size:12px;font-weight:700;border-radius:20px;padding:1px 8px;background:var(--line);color:var(--text);margin-left:6px;vertical-align:1px}
+.chip.dead{background:#E5E7EB;color:#374151}
+.avatar{flex:0 0 40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;background:var(--acc)}
+.avatar.dead{background:#6B7280}
+.search{display:block;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+
+/* Công tắc bật/tắt */
+.sw{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:50px;height:30px;border-radius:15px;background:#D1D5DB;position:relative;transition:.2s;margin:0;cursor:pointer}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s}
+.sw:checked{background:var(--ok)}
+.sw:checked::after{left:23px}
+
+/* Form */
+.f{display:block;margin:12px 0}
+.f>.l{display:block;font-size:14px;color:var(--muted);margin-bottom:4px}
+.inp{display:block;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+textarea.inp{min-height:70px;resize:vertical}
+.grp{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 14px 10px;margin:14px 0}
+.grp>h3{margin:10px 0 4px;font-size:16px}
+.line{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:10px 0}
+.seg{display:flex;background:var(--line);border-radius:10px;padding:3px;gap:3px;margin:8px 0}
+.seg button{flex:1;border:0;background:none;border-radius:8px;padding:7px 4px;font-size:14px;font-weight:600}
+.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15);color:var(--acc)}
+.dmy{display:flex;gap:6px;align-items:center}
+.dmy input{flex:1;min-width:0;text-align:center;padding:10px 4px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.dmy input.y{flex:1.6}
+.dmy select{flex:1;min-width:0;padding:10px 4px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.conv{font-size:13px;color:var(--muted);margin-top:6px;min-height:18px}
+.conv.err{color:var(--danger)}
+.ph{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.ph button{border:1px solid var(--line);background:var(--field);border-radius:8px;padding:3px 8px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+.preview{font-size:14px;background:var(--soon-bg);border-radius:10px;padding:8px 10px;margin-top:6px}
+.chk{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:15px}
+.chk input{width:20px;height:20px}
+
+/* Bảng trượt lên (thêm / sửa) */
+#sheet{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+#sheet .sh-h{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;border-bottom:1px solid var(--line);background:var(--card)}
+#sheet .sh-h h2{flex:1;text-align:center;margin:0;font-size:17px}
+#sheet .sh-h button{border:0;background:none;font-size:16px;padding:8px 8px;color:var(--acc);font-weight:600}
+#sheet .sh-h button.save{font-weight:800}
+#sheet .sh-b{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:4px 14px calc(30px + env(safe-area-inset-bottom))}
+#sheet .sh-b>div{max-width:720px;margin:0 auto}
+
+/* Màn hình mã PIN */
+#pin{position:fixed;inset:0;z-index:40;background:linear-gradient(180deg,#FFE4E6,#FDF2F8);display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+@media (prefers-color-scheme:dark){#pin{background:linear-gradient(180deg,#2A0A14,#1A0F13)}}
+.pin-in{width:100%;max-width:330px;text-align:center}
+.pin-in img{width:64px;height:64px;border-radius:16px;box-shadow:0 6px 18px -6px rgba(190,18,60,.6)}
+.pin-in h2{margin:12px 0 4px;font-size:20px}
+.pin-in p{margin:0;min-height:20px;font-size:14px;color:var(--muted)}
+.dots{display:flex;justify-content:center;gap:14px;margin:20px 0 8px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--acc)}
+.dots i.f{background:var(--acc)}
+.dots.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+#pinM{color:var(--danger);font-weight:600}
+.pad{display:grid;grid-template-columns:repeat(3,76px);justify-content:center;gap:14px 22px;margin-top:16px}
+.pad button{width:76px;height:76px;border-radius:50%;border:0;background:var(--card);font-size:28px;font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.pad button:active{background:var(--line)}
+.pad button.fn{background:none;box-shadow:none;font-size:15px;color:var(--acc);font-weight:700}
+.pad button.fn.bio{font-size:30px}
+.pad button:disabled{visibility:hidden}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(30,20,25,.92);color:#fff;
+  padding:10px 16px;border-radius:12px;font-size:14px;max-width:90vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Màn hình chính (chỉ hiện sau khi mở khóa) -->
+<div id="appScr" hidden>
+  <header>
+    <img src="icon-192.png" alt="">
+    <h1>MyMemory</h1>
+    <button class="hbtn" id="btnAdd" title="Thêm">＋</button>
+    <button class="hbtn" id="btnLock" title="Khóa">🔒</button>
+  </header>
+  <main id="view"></main>
+  <nav>
+    <button data-tab="up"><span>📅</span><i>Sắp tới</i></button>
+    <button data-tab="people"><span>👪</span><i>Người thân</i></button>
+    <button data-tab="items"><span>🎉</span><i>Ngày lễ</i></button>
+    <button data-tab="set"><span>⚙️</span><i>Cài đặt</i></button>
+  </nav>
+</div>
+
+<!-- Bảng thêm / sửa -->
+<div id="sheet" hidden>
+  <div class="sh-h"><button id="shCancel">Hủy</button><h2 id="shTitle"></h2><button id="shSave" class="save">Lưu</button></div>
+  <div class="sh-b"><div id="shBody"></div></div>
+</div>
+
+<!-- Màn hình nhập mã PIN -->
+<div id="pin" hidden>
+  <div class="pin-in">
+    <img src="icon-192.png" alt="">
+    <h2 id="pinT"></h2>
+    <p id="pinS"></p>
+    <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p id="pinM"></p>
+    <div class="pad" id="pinPad">
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button data-k="L" class="fn" id="pinL"></button><button data-k="0">0</button><button data-k="B" class="fn" id="pinB">⌫</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const VER = '1.0';
+const LS_VAULT = 'mymemory_vault';   // dữ liệu đã mã hóa
+const LS_FAIL = 'mymemory_fail';     // số lần nhập sai mã PIN
+const LS_UI = 'mymemory_ui';         // tab đang mở (không phải thông tin cá nhân)
+const ITER = 300000;                 // số vòng PBKDF2 khi tạo khóa từ mã PIN
+const te = new TextEncoder(), td = new TextDecoder();
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* =====================================================================
+   ÂM LỊCH VIỆT NAM (thuật toán của Hồ Ngọc Đức, múi giờ GMT+7)
+   jd = số ngày Julius, dùng để tính khoảng cách giữa 2 ngày
+   ===================================================================== */
+const TZ = 7;
+const INT = Math.floor;
+function jdFromDate(dd, mm, yy) {
+  const a = INT((14 - mm) / 12), y = yy + 4800 - a, m = mm + 12 * a - 3;
+  let jd = dd + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - INT(y / 100) + INT(y / 400) - 32045;
+  if (jd < 2299161) jd = dd + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - 32083;
+  return jd;
+}
+function jdToDate(jd) {
+  let a, b, c;
+  if (jd > 2299160) { a = jd + 32044; b = INT((4 * a + 3) / 146097); c = a - INT((b * 146097) / 4); }
+  else { b = 0; c = jd + 32082; }
+  const d = INT((4 * c + 3) / 1461), e = c - INT((1461 * d) / 4), m = INT((5 * e + 2) / 153);
+  return [e - INT((153 * m + 2) / 5) + 1, m + 3 - 12 * INT(m / 10), b * 100 + d - 4800 + INT(m / 10)];
+}
+function newMoon(k) {
+  const T = k / 1236.85, T2 = T * T, T3 = T2 * T, dr = Math.PI / 180;
+  let Jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+  Jd1 += 0.00033 * Math.sin((166.56 + 132.87 * T - 0.009173 * T2) * dr);
+  const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+  const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+  const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+  let C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M);
+  C1 = C1 - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+  C1 = C1 - 0.0004 * Math.sin(dr * 3 * Mpr);
+  C1 = C1 + 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+  C1 = C1 - 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+  C1 = C1 - 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+  C1 = C1 + 0.0010 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+  const deltat = T < -11
+    ? 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3
+    : -0.000278 + 0.000265 * T + 0.000262 * T2;
+  return Jd1 + C1 - deltat;
+}
+function sunLongitude(jdn) {
+  const T = (jdn - 2451545.0) / 36525, T2 = T * T, dr = Math.PI / 180;
+  const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+  const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+  let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+  DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+  let L = (L0 + DL) * dr;
+  L -= Math.PI * 2 * INT(L / (Math.PI * 2));
+  return L;
+}
+const getSunLongitude = (dayNumber, tz) => INT(sunLongitude(dayNumber - 0.5 - tz / 24) / Math.PI * 6);
+const getNewMoonDay = (k, tz) => INT(newMoon(k) + 0.5 + tz / 24);
+function getLunarMonth11(yy, tz) {
+  const off = jdFromDate(31, 12, yy) - 2415021;
+  const k = INT(off / 29.530588853);
+  let nm = getNewMoonDay(k, tz);
+  if (getSunLongitude(nm, tz) >= 9) nm = getNewMoonDay(k - 1, tz);
+  return nm;
+}
+function getLeapMonthOffset(a11, tz) {
+  const k = INT((a11 - 2415021.076998695) / 29.530588853 + 0.5);
+  let last, i = 1, arc = getSunLongitude(getNewMoonDay(k + i, tz), tz);
+  do { last = arc; i++; arc = getSunLongitude(getNewMoonDay(k + i, tz), tz); } while (arc !== last && i < 14);
+  return i - 1;
+}
+// Dương → Âm: trả về [ngày, tháng, năm, nhuận(0/1)]
+function solar2lunar(dd, mm, yy) {
+  const dayNumber = jdFromDate(dd, mm, yy);
+  const k = INT((dayNumber - 2415021.076998695) / 29.530588853);
+  let monthStart = getNewMoonDay(k + 1, TZ);
+  if (monthStart > dayNumber) monthStart = getNewMoonDay(k, TZ);
+  let a11 = getLunarMonth11(yy, TZ), b11 = a11, lunarYear;
+  if (a11 >= monthStart) { lunarYear = yy; a11 = getLunarMonth11(yy - 1, TZ); }
+  else { lunarYear = yy + 1; b11 = getLunarMonth11(yy + 1, TZ); }
+  const lunarDay = dayNumber - monthStart + 1;
+  const diff = INT((monthStart - a11) / 29);
+  let lunarLeap = 0, lunarMonth = diff + 11;
+  if (b11 - a11 > 365) {
+    const leapMonthDiff = getLeapMonthOffset(a11, TZ);
+    if (diff >= leapMonthDiff) { lunarMonth = diff + 10; if (diff === leapMonthDiff) lunarLeap = 1; }
+  }
+  if (lunarMonth > 12) lunarMonth -= 12;
+  if (lunarMonth >= 11 && diff < 4) lunarYear -= 1;
+  return [lunarDay, lunarMonth, lunarYear, lunarLeap];
+}
+// Âm → Dương: trả về [ngày, tháng, năm]; [0,0,0] nếu năm đó không có tháng nhuận đã chọn
+function lunar2solar(lunarDay, lunarMonth, lunarYear, lunarLeap) {
+  let a11, b11;
+  if (lunarMonth < 11) { a11 = getLunarMonth11(lunarYear - 1, TZ); b11 = getLunarMonth11(lunarYear, TZ); }
+  else { a11 = getLunarMonth11(lunarYear, TZ); b11 = getLunarMonth11(lunarYear + 1, TZ); }
+  const k = INT(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+  let off = lunarMonth - 11;
+  if (off < 0) off += 12;
+  if (b11 - a11 > 365) {
+    const leapOff = getLeapMonthOffset(a11, TZ);
+    let leapMonth = leapOff - 2;
+    if (leapMonth < 0) leapMonth += 12;
+    if (lunarLeap && lunarMonth !== leapMonth) return [0, 0, 0];
+    else if (lunarLeap || off >= leapOff) off += 1;
+  }
+  return jdToDate(getNewMoonDay(k + off, TZ) + lunarDay - 1);
+}
+const lunarOf = jd => { const [d, m, y] = jdToDate(jd); return solar2lunar(d, m, y); };
+// Ngày âm hằng năm (tháng thường): tháng chỉ có 29 ngày thì ngày 30 tính là ngày 29
+function lunarToJd(d, m, ly) {
+  const s = lunar2solar(d, m, ly, 0);
+  if (!s[0]) return null;
+  let jd = jdFromDate(s[0], s[1], s[2]);
+  if (d === 30 && lunarOf(jd)[0] !== 30) jd -= 1;
+  return jd;
+}
+const CAN = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'];
+const CHI = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'];
+const canchi = y => CAN[(y + 6) % 10] + ' ' + CHI[(y + 8) % 12];
+const WD = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+const WDS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const NTH = ['', 'thứ 1', 'thứ 2', 'thứ 3', 'thứ 4', 'cuối cùng'];
+const wdOf = jd => (jd + 1) % 7;   // 0 = Chủ nhật
+const isLeapY = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const dim = (m, y) => [31, isLeapY(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+function todayJd() { const n = new Date(); return jdFromDate(n.getDate(), n.getMonth() + 1, n.getFullYear()); }
+function nthWd(y, m, n, wd) {          // ví dụ: Chủ nhật thứ 2 của tháng 5
+  if (n === 5) {
+    const last = (m === 12 ? jdFromDate(1, 1, y + 1) : jdFromDate(1, m + 1, y)) - 1;
+    return last - ((wdOf(last) - wd + 7) % 7);
+  }
+  const first = jdFromDate(1, m, y);
+  return first + ((wd - wdOf(first) + 7) % 7) + 7 * (n - 1);
+}
+
+/* =====================================================================
+   NGÀY CẦN NHỚ
+   dt = { c:'s' dương | 'l' âm | 'w' theo thứ, d, m, y (có thể null), lp: tháng nhuận, n, wd }
+   ===================================================================== */
+function occForYear(dt, yr) {
+  if (dt.c === 's') { let d = dt.d; if (dt.m === 2 && d === 29 && !isLeapY(yr)) d = 28; return jdFromDate(d, dt.m, yr); }
+  if (dt.c === 'w') return nthWd(yr, dt.m, dt.n, dt.wd);
+  return lunarToJd(dt.d, dt.m, yr);
+}
+// Lần gần nhất (từ hôm nay trở đi). yr = năm dương (hoặc năm âm nếu là ngày âm)
+function nextOcc(dt, from) {
+  const base = dt.c === 'l' ? lunarOf(from)[2] : jdToDate(from)[2];
+  for (const yr of [base - 1, base, base + 1, base + 2]) {
+    if (dt.y && yr < dt.y) continue;
+    const jd = occForYear(dt, yr);
+    if (jd != null && jd >= from) return { jd, yr };
+  }
+  return null;
+}
+function fmtDate(dt) {
+  if (!dt) return '';
+  if (dt.c === 'w') return `${WD[dt.wd]} ${NTH[dt.n]} của tháng ${dt.m}`;
+  if (dt.c === 'l') return `${dt.d}/${dt.m}${dt.lp ? ' nhuận' : ''} âm lịch` + (dt.y ? ` năm ${canchi(dt.y)} (${dt.y})` : '');
+  return `${dt.d}/${dt.m}` + (dt.y ? `/${dt.y}` : '') + ' dương lịch';
+}
+const lcFirst = s => s ? s.charAt(0).toLowerCase() + s.slice(1) : '';
+const ucFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+const DEF = {
+  b: { s: 'Còn {n} ngày là đến sinh nhật {qh} {ten}', t: 'Hôm nay là sinh nhật {qh} {ten} 🎂', l: 'Sinh nhật {qh} {ten}' },
+  d: { s: 'Còn {n} ngày là đến ngày giỗ {qh} {ten}', t: 'Hôm nay là ngày giỗ {qh} {ten} 🕯️', l: 'Ngày giỗ {qh} {ten}' },
+  i: { s: 'Còn {n} ngày là đến {ten}', t: 'Hôm nay là {ten}', l: '{ten}' }
+};
+const ICON = { b: '🎂', d: '🕯️', i: '🎉' };
+function fill(tpl, v) {
+  return ucFirst(tpl.replace(/\{(n|ten|qh|tuoi|nam|ngay|am)\}/g, (_, k) => v[k] == null ? '' : String(v[k])).replace(/\s{2,}/g, ' ').trim());
+}
+function giText(nam) { return nam === 1 ? 'Giỗ đầu' : nam === 2 ? 'Giỗ hết (năm thứ 2)' : `Giỗ năm thứ ${nam}`; }
+
+// Danh sách nguồn: sinh nhật, ngày giỗ của từng người + các ngày lễ (chỉ những mục đang bật nhắc)
+function sources(all) {
+  const out = [];
+  for (const p of data.people) {
+    if (p.birth && (all || p.br.on)) out.push({ kind: 'b', p, id: p.id, dt: p.birth, r: p.br });
+    if (p.dead && p.death && (all || p.dr.on)) out.push({ kind: 'd', p, id: p.id, dt: p.death, r: p.dr });
+  }
+  for (const it of data.items) if (all || it.r.on) out.push({ kind: 'i', it, id: it.id, dt: it.date, r: it.r });
+  return out;
+}
+function soonOf(r) { return r.soon != null ? r.soon : data.settings.soon; }
+function varsOf(src, o, days) {
+  const [d, m, y] = jdToDate(o.jd), L = lunarOf(o.jd);
+  const v = { n: days, ten: src.p ? src.p.name : src.it.name, qh: src.p ? lcFirst(src.p.rel || '') : '', ngay: `${d}/${m}`, am: `${L[0]}/${L[1]}` };
+  if (src.dt.y) {
+    const k = o.yr - src.dt.y;
+    if (src.kind === 'b' && k > 0) v.tuoi = k;
+    if (src.kind !== 'b' && k > 0) v.nam = k;
+  }
+  return v;
+}
+function mkOcc(src, o, today) {
+  const days = o.jd - today, soon = soonOf(src.r), v = varsOf(src, o, days), D = DEF[src.kind];
+  const cls = days === 0 ? 'today' : days <= Math.min(3, soon) ? 'near' : days <= soon ? 'soon' : '';
+  const label = fill(D.l, v);
+  const title = days === 0 ? fill(src.r.t || D.t, v) : days <= soon ? fill(src.r.s || D.s, v) : label;
+  const [d, m, y] = jdToDate(o.jd);
+  const info = [];
+  if (title !== label) info.push(label);
+  info.push(`${WD[wdOf(o.jd)]}, ${d}/${m}/${y}`);
+  if (src.dt.c === 'l') info.push(`âm lịch ${v.am}`);
+  if (v.tuoi) info.push(`tròn ${v.tuoi} tuổi`);
+  if (v.nam) info.push(src.kind === 'd' ? lcFirst(giText(v.nam)) : `năm thứ ${v.nam}`);
+  return { src, jd: o.jd, yr: o.yr, days, soon, cls, title, label, info: info.join(' · '), v };
+}
+function allOcc(today) {
+  return sources(false).map(s => { const o = nextOcc(s.dt, today); return o ? mkOcc(s, o, today) : null; })
+    .filter(Boolean).sort((a, b) => a.days - b.days || a.title.localeCompare(b.title, 'vi'));
+}
+const daysText = n => n === 0 ? 'Hôm nay' : n === 1 ? 'Ngày mai' : `Còn ${n} ngày`;
+
+/* =====================================================================
+   MÃ HÓA DỮ LIỆU (AES-GCM 256)
+   - Khóa dữ liệu ngẫu nhiên, được "bọc" bằng khóa tạo từ mã PIN (PBKDF2)
+   - Bật Face ID: khóa dữ liệu được bọc thêm 1 lần bằng khóa từ passkey (WebAuthn PRF)
+   ===================================================================== */
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+const b64 = u => { u = new Uint8Array(u); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function pinKek(pin, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', te.encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function bioKek(prf) {
+  const base = await crypto.subtle.importKey('raw', prf, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode('MyMemory Face ID') }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function aesEnc(key, bytes) {
+  const iv = rand(12);
+  return { iv: b64(iv), ct: b64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes)) };
+}
+async function aesDec(key, o) {
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(o.iv) }, key, unb64(o.ct)));
+}
+const importData = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+
+let vault = null;    // { v, salt, iter, w (khóa bọc bằng PIN), bio, data (dữ liệu đã mã hóa) }
+let rawKey = null, dataKey = null, data = null;   // chỉ có trong bộ nhớ khi đang mở khóa
+let locked = true, hiddenAt = 0;
+function loadVault() { try { return JSON.parse(localStorage.getItem(LS_VAULT)); } catch (e) { return null; } }
+function saveVault() { localStorage.setItem(LS_VAULT, JSON.stringify(vault)); }
+async function save() {
+  vault.data = await aesEnc(dataKey, te.encode(JSON.stringify(data)));
+  saveVault();
+  updateBadge();
+}
+async function openWith(raw) {
+  const k = await importData(raw);
+  const d = JSON.parse(td.decode(await aesDec(k, vault.data)));
+  rawKey = raw; dataKey = k; data = fixData(d);
+}
+async function createVault(pin) {
+  const raw = rand(32), salt = rand(16);
+  vault = { v: 1, salt: b64(salt), iter: ITER, w: await aesEnc(await pinKek(pin, salt, ITER), raw), bio: null, data: null };
+  rawKey = raw; dataKey = await importData(raw); data = defaultData();
+  await save();
+}
+async function tryPin(pin) {      // đúng mã PIN → trả về khóa dữ liệu, sai → null
+  try { return await aesDec(await pinKek(pin, unb64(vault.salt), vault.iter), vault.w); } catch (e) { return null; }
+}
+function getFail() { try { return JSON.parse(localStorage.getItem(LS_FAIL)) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
+function setFail(f) { localStorage.setItem(LS_FAIL, JSON.stringify(f)); }
+
+/* ----- Face ID (passkey + phần mở rộng PRF, cần iOS 18 trở lên) ----- */
+async function bioAvailable() {
+  try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; }
+}
+async function bioGet(id, salt) {
+  const a = await navigator.credentials.get({ publicKey: {
+    challenge: rand(32), allowCredentials: [{ type: 'public-key', id }], userVerification: 'required', timeout: 60000,
+    extensions: { prf: { eval: { first: salt } } } } });
+  const r = a.getClientExtensionResults().prf;
+  return r && r.results && r.results.first;
+}
+async function enableBio() {
+  const salt = rand(32);
+  const cred = await navigator.credentials.create({ publicKey: {
+    rp: { name: 'MyMemory' }, user: { id: rand(16), name: 'MyMemory', displayName: 'MyMemory' }, challenge: rand(32),
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+    timeout: 60000, extensions: { prf: { eval: { first: salt } } } } });
+  const ext = cred.getClientExtensionResults().prf;
+  if (!ext || ext.enabled === false) throw new Error('noprf');
+  const id = new Uint8Array(cred.rawId);
+  let out = ext.results && ext.results.first;
+  if (!out) out = await bioGet(id, salt);       // một số máy chỉ trả kết quả PRF khi xác thực lần 2
+  if (!out) throw new Error('noprf');
+  vault.bio = { id: b64(id), salt: b64(salt), w: await aesEnc(await bioKek(out), rawKey) };
+  saveVault();
+}
+function bioErr(e) {
+  if (e && e.message === 'noprf') return 'iPhone này chưa hỗ trợ mở khóa web app bằng Face ID (cần iOS 18 trở lên).';
+  if (e && e.name === 'NotAllowedError') return 'Đã hủy Face ID.';
+  return 'Không dùng được Face ID' + (e && e.name ? ` (${e.name})` : '') + '.';
+}
+async function unlockBio() {
+  try {
+    const out = await bioGet(unb64(vault.bio.id), unb64(vault.bio.salt));
+    if (!out) return 'Không lấy được khóa từ Face ID.';
+    await openWith(await aesDec(await bioKek(out), vault.bio.w));
+    setFail({ n: 0, until: 0 });
+    return true;
+  } catch (e) { return bioErr(e); }
+}
+
+/* =====================================================================
+   DỮ LIỆU MẶC ĐỊNH
+   ===================================================================== */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const newRemind = (on = true) => ({ on, soon: null, s: '', t: '' });
+function presets() {
+  const P = (id, name, date, on, s = '', t = '') => ({ id, name, date: Object.assign({ y: null }, date), note: '', r: { on, soon: null, s, t } });
+  return [
+    P('p_tet', 'Tết Nguyên Đán', { c: 'l', d: 1, m: 1 }, true, 'Còn {n} ngày là đến Tết Nguyên Đán 🧧', 'Chúc mừng năm mới 🧧'),
+    P('p_valen', 'Valentine 14/2', { c: 's', d: 14, m: 2 }, true, 'Còn {n} ngày là đến Valentine 14/2 – nhớ chuẩn bị quà 🌹', 'Hôm nay là Valentine 14/2 🌹'),
+    P('p_83', 'Quốc tế Phụ nữ 8/3', { c: 's', d: 8, m: 3 }, true, 'Còn {n} ngày là đến Quốc tế Phụ nữ 8/3 – nhớ chuẩn bị quà 🎁', 'Hôm nay là Quốc tế Phụ nữ 8/3 – tặng quà và hoa nhé 💐'),
+    P('p_white', 'White Day 14/3', { c: 's', d: 14, m: 3 }, false),
+    P('p_me', 'Ngày của Mẹ', { c: 'w', n: 2, wd: 0, m: 5 }, true, 'Còn {n} ngày là đến Ngày của Mẹ 💐'),
+    P('p_16', 'Quốc tế Thiếu nhi 1/6', { c: 's', d: 1, m: 6 }, true),
+    P('p_cha', 'Ngày của Cha', { c: 'w', n: 3, wd: 0, m: 6 }, true),
+    P('p_vulan', 'Lễ Vu Lan (Rằm tháng 7)', { c: 'l', d: 15, m: 7 }, true),
+    P('p_trungthu', 'Tết Trung thu', { c: 'l', d: 15, m: 8 }, true),
+    P('p_2010', 'Phụ nữ Việt Nam 20/10', { c: 's', d: 20, m: 10 }, true, 'Còn {n} ngày là đến 20/10 – nhớ chuẩn bị quà 🎁', 'Hôm nay là ngày Phụ nữ Việt Nam 20/10 💐'),
+    P('p_2011', 'Nhà giáo Việt Nam 20/11', { c: 's', d: 20, m: 11 }, false),
+    P('p_noel', 'Giáng sinh', { c: 's', d: 25, m: 12 }, true),
+    P('p_tao', 'Ông Công Ông Táo (23 tháng Chạp)', { c: 'l', d: 23, m: 12 }, true),
+    P('p_tetdl', 'Tết Dương lịch', { c: 's', d: 1, m: 1 }, false),
+    P('p_ramgieng', 'Rằm tháng Giêng', { c: 'l', d: 15, m: 1 }, false),
+    P('p_hung', 'Giỗ Tổ Hùng Vương', { c: 'l', d: 10, m: 3 }, false),
+    P('p_doanngo', 'Tết Đoan Ngọ (5/5 âm)', { c: 'l', d: 5, m: 5 }, false),
+  ];
+}
+function defaultData() {
+  return fixData({ v: 1, settings: {}, people: [], items: presets() });
+}
+function fixData(d) {   // bổ sung các mục cài đặt còn thiếu (khi app được nâng cấp)
+  d.settings = Object.assign({ soon: 7, lockMin: 1, badge: false, icsYears: 10, icsTime: '07:00', icsShort: true }, d.settings || {});
+  d.people = d.people || []; d.items = d.items || [];
+  return d;
+}
+
+/* =====================================================================
+   MÀN HÌNH MÃ PIN
+   showPin({title, sub, check, bio, cancel}) → trả về mã PIN đã nhập (hoặc null nếu bấm Hủy)
+   check(pin): trả về true nếu đúng, chuỗi thông báo nếu sai
+   ===================================================================== */
+let pinState = null;
+function showPin(opt) {
+  return new Promise(resolve => {
+    pinState = { opt, buf: '', busy: false, resolve };
+    $('#pinT').textContent = opt.title;
+    $('#pinS').textContent = opt.sub || '';
+    $('#pinM').textContent = '';
+    const L = $('#pinL');
+    L.disabled = !(opt.bio || opt.cancel);
+    L.className = 'fn' + (opt.bio ? ' bio' : '');
+    L.textContent = opt.bio ? '🙂' : 'Hủy';
+    L.title = opt.bio ? 'Mở bằng Face ID' : 'Hủy';
+    pinDots();
+    $('#pin').hidden = false;
+    if (opt.bio && opt.autoBio) setTimeout(pinBio, 300);
+  });
+}
+function pinDots() { [...$('#pinDots').children].forEach((e, i) => e.classList.toggle('f', i < pinState.buf.length)); }
+function pinClose(val) { const s = pinState; pinState = null; $('#pin').hidden = true; s.resolve(val); }
+function pinShake(msg) {
+  const d = $('#pinDots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+  $('#pinM').textContent = msg || '';
+  if (navigator.vibrate) navigator.vibrate(150);
+}
+async function pinBio() {
+  const s = pinState;
+  if (!s || s.busy || !s.opt.bio) return;
+  s.busy = true;
+  const r = await s.opt.bio();
+  s.busy = false;
+  if (pinState !== s) return;
+  if (r === true) pinClose('bio'); else $('#pinM').textContent = r || '';
+}
+async function pinKey(k) {
+  const s = pinState;
+  if (!s || s.busy) return;
+  if (k === 'L') { if (s.opt.bio) pinBio(); else if (s.opt.cancel) pinClose(null); return; }
+  if (k === 'B') { s.buf = s.buf.slice(0, -1); pinDots(); return; }
+  if (s.buf.length >= 6) return;
+  s.buf += k; pinDots();
+  if (s.buf.length < 6) return;
+  if (!s.opt.check) { const v = s.buf; setTimeout(() => pinClose(v), 120); return; }
+  s.busy = true;
+  const r = await s.opt.check(s.buf);
+  s.busy = false;
+  if (r === true) pinClose(s.buf);
+  else { s.buf = ''; pinDots(); pinShake(r); }
+}
+$('#pinPad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) pinKey(b.dataset.k); });
+document.addEventListener('keydown', e => {
+  if (!pinState) return;
+  if (/^[0-9]$/.test(e.key)) pinKey(e.key);
+  else if (e.key === 'Backspace') pinKey('B');
+  else if (e.key === 'Escape' && pinState.opt.cancel) pinClose(null);
+});
+
+async function checkUnlock(pin) {
+  const f = getFail();
+  if (f.until > Date.now()) return `Nhập sai nhiều lần. Thử lại sau ${Math.ceil((f.until - Date.now()) / 1000)} giây.`;
+  const raw = await tryPin(pin);
+  if (!raw) {
+    f.n++;
+    if (f.n >= 5) { f.until = Date.now() + 30000 * Math.pow(2, Math.min(f.n - 5, 5)); }
+    setFail(f);
+    return f.n >= 5 ? `Sai mã PIN. Thử lại sau ${Math.round((f.until - Date.now()) / 1000)} giây.` : `Sai mã PIN (còn ${5 - f.n} lần thử).`;
+  }
+  await openWith(raw);
+  setFail({ n: 0, until: 0 });
+  return true;
+}
+async function askNewPin(title) {      // nhập mã mới 2 lần; trả về mã PIN hoặc null
+  for (;;) {
+    const p1 = await showPin({ title, sub: 'Nhập 6 số. Quên mã PIN là không mở được dữ liệu.', cancel: !!vault && !!data });
+    if (p1 == null) return null;
+    const p2 = await showPin({ title: 'Nhập lại mã PIN', sub: 'Nhập lại để xác nhận', cancel: true });
+    if (p2 === p1) return p1;
+    if (p2 != null) toast('Hai lần nhập không giống nhau. Nhập lại từ đầu.');
+  }
+}
+
+async function start() {
+  vault = loadVault();
+  if (!vault) {
+    const pin = await askNewPin('Tạo mã PIN 6 số');
+    await createVault(pin);
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    enterApp();
+    if (await bioAvailable() && confirm('Bật mở khóa bằng Face ID?')) {
+      try { await enableBio(); toast('Đã bật Face ID'); } catch (e) { alert(bioErr(e)); }
+    }
+    return;
+  }
+  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, autoBio: true });
+  enterApp();
+}
+function lock() {
+  if (locked) return;
+  locked = true; rawKey = null; dataKey = null; data = null;
+  $('#sheet').hidden = true; $('#view').innerHTML = ''; $('#appScr').hidden = true;
+  start();
+}
+function enterApp() {
+  locked = false;
+  $('#appScr').hidden = false;
+  render();
+  updateBadge();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    hiddenAt = Date.now();
+    if (!locked && data && data.settings.lockMin === 0) lock();
+  } else if (!locked && data) {
+    if (Date.now() - hiddenAt > data.settings.lockMin * 60000) lock();
+    else if (tab === 'up') render();     // ngày có thể đã sang ngày mới
+  }
+});
+
+/* =====================================================================
+   GIAO DIỆN
+   ===================================================================== */
+let tab = 'up';
+try { tab = JSON.parse(localStorage.getItem(LS_UI)).tab || 'up'; } catch (e) {}
+let toastT = 0;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; try { localStorage.setItem(LS_UI, JSON.stringify({ tab })); } catch (e) {} render(); window.scrollTo(0, 0); });
+$('#btnLock').onclick = () => lock();
+$('#btnAdd').onclick = () => tab === 'items' ? editItem(null) : editPerson(null);
+
+function render() {
+  if (!data) return;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  const today = todayJd(), occ = allOcc(today);
+  const near = occ.filter(o => o.days <= o.soon).length;
+  const navUp = document.querySelector('nav [data-tab=up]');
+  navUp.innerHTML = '<span>📅</span><i>Sắp tới</i>' + (near ? `<b class="dot">${near}</b>` : '');
+  $('#btnAdd').hidden = tab === 'up' || tab === 'set';
+  const v = $('#view');
+  if (tab === 'up') v.innerHTML = viewUp(today, occ);
+  else if (tab === 'people') v.innerHTML = viewPeople(today);
+  else if (tab === 'items') v.innerHTML = viewItems(today);
+  else v.innerHTML = viewSet();
+  if (tab === 'set') bindSet();
+  const q = $('#q');
+  if (q) q.oninput = () => filterPeople(q.value);
+}
+function evCard(o) {
+  const [d, m] = jdToDate(o.jd);
+  return `<div class="ev ${o.cls}" data-act="edit" data-kind="${o.src.kind}" data-id="${esc(o.src.id)}">
+    <div class="ev-date"><b>${d}</b><span>Th ${m}</span><small>${WDS[wdOf(o.jd)]}</small></div>
+    <div class="ev-body"><div class="ev-t">${ICON[o.src.kind]} ${esc(o.title)}</div><div class="ev-i">${esc(o.info)}</div></div>
+    <div class="ev-n">${daysText(o.days)}</div></div>`;
+}
+function viewUp(today, occ) {
+  const [d, m, y] = jdToDate(today), L = lunarOf(today);
+  const tod = occ.filter(o => o.days === 0), soon = occ.filter(o => o.days > 0 && o.days <= o.soon), rest = occ.filter(o => o.days > o.soon);
+  let h = `<div class="card todaybox"><div class="big">${WD[wdOf(today)]}, ${d}/${m}/${y}</div>
+    <div>Âm lịch: ngày ${L[0]} tháng ${L[1]}${L[3] ? ' nhuận' : ''} năm ${canchi(L[2])}</div></div>`;
+  if (tod.length) h += `<div class="banner today">🔔 Hôm nay có ${tod.length} ngày cần nhớ!</div>`;
+  if (soon.length) h += `<div class="banner soon">⏰ Sắp đến: ${soon.length} ngày trong thời gian báo trước</div>`;
+  if (!tod.length && !soon.length) h += `<div class="banner none">✨ Không có ngày nào sắp đến trong ${data.settings.soon} ngày tới.</div>`;
+  if (tod.length) h += `<h2 class="sec">🔴 Hôm nay</h2>` + tod.map(evCard).join('');
+  if (soon.length) h += `<h2 class="sec">🟠 Sắp đến</h2>` + soon.map(evCard).join('');
+  if (rest.length) h += `<h2 class="sec">📆 Các ngày khác</h2>` + rest.map(evCard).join('');
+  if (!occ.length) h += `<div class="empty">Chưa có ngày nào. Vào tab <b>Người thân</b> để thêm người.</div>`;
+  return h;
+}
+function ageNow(p, today) {   // tuổi hiện tại (người còn sống), null nếu không biết năm sinh
+  if (!p.birth || !p.birth.y) return null;
+  const o = nextOcc(p.birth, today);
+  if (!o) return null;
+  return o.jd === today ? o.yr - p.birth.y : o.yr - p.birth.y - 1;
+}
+function viewPeople(today) {
+  let h = `<input id="q" class="search" type="search" placeholder="🔍 Tìm theo tên hoặc mối quan hệ">`;
+  h += `<button class="btn primary block" data-act="addp">＋ Thêm người</button>`;
+  if (!data.people.length) return h + `<div class="empty">Chưa có ai. Bấm <b>＋ Thêm người</b> để thêm vợ, bố mẹ, ông bà…</div>`;
+  const list = [...data.people].sort((a, b) => (a.dead - b.dead) || (a.rel || '').localeCompare(b.rel || '', 'vi') || a.name.localeCompare(b.name, 'vi'));
+  for (const p of list) {
+    const s = [];
+    if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
+    if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
+    h += `<div class="row" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc((p.name + ' ' + (p.rel || '')).toLowerCase())}">
+      <div class="avatar${p.dead ? ' dead' : ''}">${esc(p.name.trim().split(/\s+/).pop().charAt(0).toUpperCase())}</div>
+      <div class="grow"><div class="t">${esc(p.name)}${p.rel ? `<span class="chip">${esc(p.rel)}</span>` : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
+      <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
+  }
+  return h;
+}
+function filterPeople(q) {
+  q = q.trim().toLowerCase();
+  document.querySelectorAll('#view .row[data-q]').forEach(r => r.hidden = q && !r.dataset.q.includes(q));
+}
+function viewItems(today) {
+  let h = `<button class="btn primary block" data-act="addi">＋ Thêm ngày lễ / kỷ niệm</button>
+    <p class="muted">Bật công tắc để nhắc. Có thể thêm ngày kỷ niệm riêng (ngày cưới, ngày quen nhau…).</p>`;
+  const list = data.items.map(it => ({ it, o: nextOcc(it.date, today) }))
+    .sort((a, b) => (b.it.r.on - a.it.r.on) || ((a.o ? a.o.jd : 1e9) - (b.o ? b.o.jd : 1e9)));
+  for (const { it, o } of list) {
+    const when = o ? `${daysText(o.jd - today)} (${jdToDate(o.jd).slice(0, 2).join('/')})` : '';
+    h += `<div class="row${it.r.on ? '' : ' off'}" data-act="edit" data-kind="i" data-id="${esc(it.id)}">
+      <div class="grow"><div class="t">${esc(it.name)}</div><div class="s">${esc(fmtDate(it.date))}${it.r.on && when ? ' · ' + esc(when) : ''}</div></div>
+      <input type="checkbox" class="sw" data-act="toggle" data-id="${esc(it.id)}" ${it.r.on ? 'checked' : ''}></div>`;
+  }
+  return h;
+}
+$('#view').addEventListener('click', async e => {
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  const a = t.dataset.act;
+  if (a === 'toggle') {
+    e.stopPropagation();
+    const it = data.items.find(x => x.id === t.dataset.id);
+    if (it) { it.r.on = t.checked; await save(); render(); }
+    return;
+  }
+  if (a === 'addp') return editPerson(null);
+  if (a === 'addi') return editItem(null);
+  if (a === 'edit') {
+    if (t.dataset.kind === 'i') editItem(data.items.find(x => x.id === t.dataset.id));
+    else editPerson(data.people.find(x => x.id === t.dataset.id));
+  }
+});
+
+/* ----- Bảng thêm / sửa ----- */
+let sheetSave = null;
+function openSheet(title, html, onSave) {
+  $('#shTitle').textContent = title;
+  $('#shBody').innerHTML = html;
+  sheetSave = onSave;
+  $('#sheet').hidden = false;
+  $('#sheet .sh-b').scrollTop = 0;
+}
+function closeSheet() { $('#sheet').hidden = true; $('#shBody').innerHTML = ''; sheetSave = null; }
+$('#shCancel').onclick = closeSheet;
+$('#shSave').onclick = async () => { if (sheetSave && await sheetSave() !== false) { closeSheet(); render(); } };
+
+// Ô nhập ngày: chọn Dương lịch / Âm lịch / (Theo thứ), ngày – tháng – năm
+function dateBoxHtml(key, dt, allowW, yearPh) {
+  dt = dt || { c: 's', d: '', m: '', y: null };
+  const segs = [['s', 'Dương lịch'], ['l', 'Âm lịch']].concat(allowW ? [['w', 'Theo thứ']] : []);
+  const opt = (arr, sel) => arr.map(([v, t]) => `<option value="${v}"${String(v) === String(sel) ? ' selected' : ''}>${t}</option>`).join('');
+  return `<div class="datebox" id="db_${key}" data-c="${dt.c}">
+    <div class="seg">${segs.map(([c, t]) => `<button type="button" data-c="${c}" class="${dt.c === c ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="dmy dmy-n"${dt.c === 'w' ? ' hidden' : ''}>
+      <input class="d" inputmode="numeric" maxlength="2" placeholder="Ngày" value="${dt.c !== 'w' ? esc(dt.d) : ''}">
+      <input class="m" inputmode="numeric" maxlength="2" placeholder="Tháng" value="${dt.c !== 'w' ? esc(dt.m) : ''}">
+      <input class="y" inputmode="numeric" maxlength="4" placeholder="${esc(yearPh || 'Năm')}" value="${esc(dt.y || '')}">
+    </div>
+    <label class="chk lpbox"${dt.c === 'l' ? '' : ' hidden'}><input type="checkbox" class="lp"${dt.lp ? ' checked' : ''}> Tháng nhuận</label>
+    <div class="dmy dmy-w"${dt.c === 'w' ? '' : ' hidden'}>
+      <select class="wd">${opt(WD.map((t, i) => [i, t]), dt.c === 'w' ? dt.wd : 0)}</select>
+      <select class="n">${opt([[1, 'thứ 1'], [2, 'thứ 2'], [3, 'thứ 3'], [4, 'thứ 4'], [5, 'cuối cùng']], dt.c === 'w' ? dt.n : 2)}</select>
+      <select class="wm">${opt([...Array(12)].map((_, i) => [i + 1, 'tháng ' + (i + 1)]), dt.c === 'w' ? dt.m : 5)}</select>
+    </div>
+    <div class="conv"></div></div>`;
+}
+function dateBoxGet(key, required) {
+  const box = $('#db_' + key), c = box.dataset.c, q = s => box.querySelector(s);
+  if (c === 'w') return { ok: true, dt: { c: 'w', wd: +q('.wd').value, n: +q('.n').value, m: +q('.wm').value, y: null } };
+  const raw = [q('.d').value.trim(), q('.m').value.trim(), q('.y').value.trim()];
+  if (!raw[0] && !raw[1] && !raw[2]) return required ? { ok: false, err: 'Chưa nhập ngày.' } : { ok: true, dt: null };
+  const [d, m, y] = raw.map(s => s === '' ? null : parseInt(s, 10));
+  if (!d || !m) return { ok: false, err: 'Cần nhập ngày và tháng.' };
+  if (m < 1 || m > 12) return { ok: false, err: 'Tháng phải từ 1 đến 12.' };
+  if (y != null && (y < 1850 || y > 2150)) return { ok: false, err: 'Năm phải từ 1850 đến 2150 (hoặc để trống).' };
+  const lp = c === 'l' && q('.lp').checked;
+  if (c === 's') {
+    if (d < 1 || d > dim(m, y || 2000)) return { ok: false, err: `Tháng ${m} không có ngày ${d}.` };
+  } else {
+    if (d < 1 || d > 30) return { ok: false, err: 'Ngày âm lịch phải từ 1 đến 30.' };
+    if (y != null) {
+      const s = lunar2solar(d, m, y, lp ? 1 : 0);
+      if (!s[0]) return { ok: false, err: `Năm âm ${y} không có tháng ${m} nhuận.` };
+      if (solar2lunar(s[0], s[1], s[2])[0] !== d) return { ok: false, err: `Tháng ${m} âm năm ${y} chỉ có 29 ngày.` };
+    }
+  }
+  return { ok: true, dt: { c, d, m, y, lp } };
+}
+function dateBoxConv(key) {   // hiện ngày quy đổi bên dưới ô nhập
+  const box = $('#db_' + key), cv = box.querySelector('.conv'), r = dateBoxGet(key, false);
+  cv.classList.toggle('err', !r.ok);
+  if (!r.ok) { cv.textContent = box.dataset.c === 'w' ? '' : r.err; return; }
+  const dt = r.dt;
+  if (!dt) { cv.textContent = ''; return; }
+  if (dt.c === 'w') { const today = todayJd(), o = nextOcc(dt, today); cv.textContent = o ? `Lần tới: ${jdToDate(o.jd).join('/')}` : ''; return; }
+  if (dt.c === 's') { cv.textContent = dt.y ? '' : 'Không nhập năm thì không tính được tuổi / số năm.'; return; }
+  // Âm lịch: hiện thêm ngày dương lịch (của năm đã nhập và của lần sắp tới)
+  const parts = [];
+  if (dt.y) { const s = lunar2solar(dt.d, dt.m, dt.y, dt.lp ? 1 : 0); parts.push(`= Dương lịch ${s.join('/')} (năm ${canchi(dt.y)})`); }
+  const o = nextOcc(dt, todayJd());
+  if (o) parts.push(`${NEXT_LABEL[key] || 'Sắp tới'}: ${WD[wdOf(o.jd)]}, ${jdToDate(o.jd).join('/')} (dương lịch)`);
+  cv.innerHTML = parts.map(esc).join('<br>');
+}
+const NEXT_LABEL = { birth: 'Sinh nhật sắp tới', death: 'Giỗ sắp tới', idate: 'Sắp tới' };
+// Ngày âm → " · Giỗ sắp tới: Thứ Tư, 18/11/2026"; ngày dương → không thêm gì
+function nextSolarText(dt, today, label) {
+  if (!dt || dt.c !== 'l') return '';
+  const o = nextOcc(dt, today);
+  return o ? ` · ${label}: ${WD[wdOf(o.jd)]}, ${jdToDate(o.jd).join('/')}` : '';
+}
+function bindDateBox(key, onChange) {
+  const box = $('#db_' + key);
+  box.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+    box.dataset.c = b.dataset.c;
+    box.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+    box.querySelector('.dmy-n').hidden = b.dataset.c === 'w';
+    box.querySelector('.dmy-w').hidden = b.dataset.c !== 'w';
+    box.querySelector('.lpbox').hidden = b.dataset.c !== 'l';
+    dateBoxConv(key); onChange && onChange();
+  });
+  box.addEventListener('input', () => { dateBoxConv(key); onChange && onChange(); });
+  box.addEventListener('change', () => { dateBoxConv(key); onChange && onChange(); });
+  dateBoxConv(key);
+}
+
+// Cài đặt nhắc nhở cho 1 ngày: bật/tắt, số ngày báo trước, câu nhắc
+const PH = [['{n}', 'số ngày còn lại'], ['{ten}', 'tên'], ['{qh}', 'mối quan hệ'], ['{tuoi}', 'tuổi'], ['{nam}', 'năm thứ'], ['{ngay}', 'ngày dương'], ['{am}', 'ngày âm']];
+function remindHtml(key, r, kind) {
+  const D = DEF[kind];
+  return `<div class="rbox" id="rb_${key}">
+    <div class="line"><b>🔔 Nhắc nhở</b><input type="checkbox" class="sw on"${r.on ? ' checked' : ''}></div>
+    <div class="rdet"${r.on ? '' : ' hidden'}>
+    <label class="f"><span class="l">Báo "sắp đến" trước bao nhiêu ngày</span>
+      <input class="inp soon" inputmode="numeric" maxlength="3" placeholder="Để trống = theo cài đặt chung (${data.settings.soon} ngày)" value="${r.soon != null ? r.soon : ''}"></label>
+    <label class="f"><span class="l">Câu nhắc khi sắp đến</span><input class="inp ms" type="text" placeholder="${esc(D.s)}" value="${esc(r.s)}"></label>
+    <label class="f"><span class="l">Câu nhắc đúng ngày</span><input class="inp mt" type="text" placeholder="${esc(D.t)}" value="${esc(r.t)}"></label>
+    <div class="muted small">Bấm để chèn chỗ trống, app sẽ tự điền:</div>
+    <div class="ph">${PH.map(([p, t]) => `<button type="button" data-ph="${p}" title="${t}">${p}</button>`).join('')}</div>
+    <div class="muted small">${PH.map(([p, t]) => `${p} = ${t}`).join(', ')}. Để trống câu nhắc = dùng câu mặc định (chữ mờ).</div>
+    <div class="preview"></div></div></div>`;
+}
+function remindGet(key) {
+  const b = $('#rb_' + key), q = s => b.querySelector(s);
+  const sv = q('.soon').value.trim();
+  return { on: q('.on').checked, soon: sv === '' ? null : Math.max(0, parseInt(sv, 10) || 0), s: q('.ms').value.trim(), t: q('.mt').value.trim() };
+}
+function bindRemind(key, kind, ctx) {
+  const b = $('#rb_' + key);
+  let last = b.querySelector('.ms');
+  b.querySelectorAll('.ms,.mt').forEach(i => i.addEventListener('focus', () => last = i));
+  b.querySelector('.on').onchange = e => b.querySelector('.rdet').hidden = !e.target.checked;
+  b.querySelectorAll('[data-ph]').forEach(btn => {
+    btn.addEventListener('mousedown', e => e.preventDefault());   // giữ con trỏ ở ô đang nhập
+    btn.onclick = () => {
+      const p = btn.dataset.ph, s = last.selectionStart ?? last.value.length, e = last.selectionEnd ?? s;
+      last.value = last.value.slice(0, s) + p + last.value.slice(e);
+      last.focus(); last.setSelectionRange(s + p.length, s + p.length);
+      upd();
+    };
+  });
+  const upd = () => {   // xem trước câu nhắc
+    const r = remindGet(key), c = ctx(), soon = r.soon != null ? r.soon : data.settings.soon;
+    const v = Object.assign({ n: Math.min(3, Math.max(1, soon)) }, c);
+    b.querySelector('.preview').innerHTML = `Xem trước:<br>• ${esc(fill(r.s || DEF[kind].s, v))}<br>• ${esc(fill(r.t || DEF[kind].t, Object.assign({}, v, { n: 0 })))}`;
+  };
+  b.addEventListener('input', upd);
+  b.upd = upd;
+  upd();
+}
+// Giá trị mẫu cho phần xem trước (lấy từ ô tên, mối quan hệ, ngày đang nhập)
+function sampleVars(kind, name, rel, dt) {
+  const v = { ten: name || 'Tên', qh: lcFirst(rel || '') };
+  if (dt && dt.c !== 'w') {
+    const o = nextOcc(dt, todayJd());
+    if (o) {
+      const [d, m] = jdToDate(o.jd), L = lunarOf(o.jd);
+      v.ngay = `${d}/${m}`; v.am = `${L[0]}/${L[1]}`;
+      if (dt.y && o.yr - dt.y > 0) { if (kind === 'b') v.tuoi = o.yr - dt.y; else v.nam = o.yr - dt.y; }
+    }
+  }
+  return v;
+}
+
+const RELS = ['Vợ', 'Chồng', 'Con trai', 'Con gái', 'Bố', 'Mẹ', 'Ông nội', 'Bà nội', 'Ông ngoại', 'Bà ngoại', 'Bố vợ', 'Mẹ vợ', 'Bố chồng', 'Mẹ chồng',
+  'Anh trai', 'Chị gái', 'Em trai', 'Em gái', 'Bác', 'Chú', 'Thím', 'Cô', 'Dượng', 'Dì', 'Cậu', 'Mợ', 'Anh rể', 'Chị dâu', 'Em rể', 'Em dâu',
+  'Cháu', 'Cụ', 'Bạn', 'Đồng nghiệp', 'Thầy', 'Cô giáo'];
+function editPerson(p) {
+  const isNew = !p;
+  p = p || { id: uid(), name: '', rel: '', note: '', birth: null, br: newRemind(true), dead: false, death: null, dr: newRemind(true) };
+  const html = `
+    <label class="f"><span class="l">Tên *</span><input class="inp" id="pName" type="text" value="${esc(p.name)}" placeholder="Ví dụ: Lan"></label>
+    <label class="f"><span class="l">Mối quan hệ với tôi</span><input class="inp" id="pRel" type="text" list="relList" value="${esc(p.rel)}" placeholder="Ví dụ: Vợ, Bố, Ông nội…"></label>
+    <datalist id="relList">${RELS.map(r => `<option value="${r}">`).join('')}</datalist>
+    <div class="grp"><h3>🎂 Ngày sinh</h3>${dateBoxHtml('birth', p.birth, false, 'Năm sinh')}${remindHtml('br', p.br, 'b')}</div>
+    <div class="grp"><div class="line"><h3 style="margin:6px 0">🕯️ Đã mất</h3><input type="checkbox" class="sw" id="pDead"${p.dead ? ' checked' : ''}></div>
+      <div id="deadBox"${p.dead ? '' : ' hidden'}><div class="muted small">Ngày mất (ngày giỗ). Ngày giỗ thường tính theo âm lịch.</div>
+      ${dateBoxHtml('death', p.death || { c: 'l', d: '', m: '', y: null }, false, 'Năm mất')}${remindHtml('dr', p.dr, 'd')}</div></div>
+    <label class="f"><span class="l">Ghi chú (sở thích, quà đã tặng, số điện thoại…)</span><textarea class="inp" id="pNote">${esc(p.note)}</textarea></label>
+    ${isNew ? '' : '<button class="btn danger block" id="pDel">🗑 Xóa người này</button>'}`;
+  openSheet(isNew ? 'Thêm người' : 'Sửa thông tin', html, async () => {
+    const name = $('#pName').value.trim();
+    if (!name) { alert('Chưa nhập tên.'); return false; }
+    const b = dateBoxGet('birth', false);
+    if (!b.ok) { alert('Ngày sinh: ' + b.err); return false; }
+    const dead = $('#pDead').checked;
+    let dd = { ok: true, dt: null };
+    if (dead) { dd = dateBoxGet('death', false); if (!dd.ok) { alert('Ngày mất: ' + dd.err); return false; } }
+    Object.assign(p, { name, rel: $('#pRel').value.trim(), note: $('#pNote').value.trim(), birth: b.dt, br: remindGet('br'), dead, death: dead ? dd.dt : null, dr: remindGet('dr') });
+    if (isNew) data.people.push(p);
+    await save();
+    toast('Đã lưu');
+  });
+  const ctxB = () => sampleVars('b', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('birth', false).dt);
+  const ctxD = () => sampleVars('d', $('#pName').value.trim(), $('#pRel').value.trim(), dateBoxGet('death', false).dt);
+  bindRemind('br', 'b', ctxB); bindRemind('dr', 'd', ctxD);
+  const updAll = () => { $('#rb_br').upd(); $('#rb_dr').upd(); };
+  bindDateBox('birth', updAll); bindDateBox('death', updAll);
+  $('#pName').oninput = updAll; $('#pRel').oninput = updAll;
+  $('#pDead').onchange = e => {
+    $('#deadBox').hidden = !e.target.checked;
+    // người đã mất: mặc định tắt nhắc sinh nhật (vẫn bật lại được)
+    if (e.target.checked && isNew) { const sw = $('#rb_br .on'); sw.checked = false; $('#rb_br .rdet').hidden = true; }
+  };
+  if ($('#pDel')) $('#pDel').onclick = async () => {
+    if (!confirm(`Xóa "${p.name}"? Không khôi phục lại được.`)) return;
+    data.people = data.people.filter(x => x !== p);
+    await save(); closeSheet(); render(); toast('Đã xóa');
+  };
+}
+function editItem(it) {
+  const isNew = !it;
+  it = it || { id: uid(), name: '', date: { c: 's', d: '', m: '', y: null }, note: '', r: newRemind(true) };
+  const html = `
+    <label class="f"><span class="l">Tên ngày *</span><input class="inp" id="iName" type="text" value="${esc(it.name)}" placeholder="Ví dụ: Kỷ niệm ngày cưới"></label>
+    <div class="grp"><h3>📅 Ngày</h3>${dateBoxHtml('idate', it.date, true, 'Năm bắt đầu')}
+      <div class="muted small">Năm bắt đầu (không bắt buộc): nhập thì app tính được "năm thứ mấy", ví dụ kỷ niệm ngày cưới.</div>
+      ${remindHtml('ir', it.r, 'i')}</div>
+    <label class="f"><span class="l">Ghi chú (ý tưởng quà…)</span><textarea class="inp" id="iNote">${esc(it.note)}</textarea></label>
+    ${isNew ? '' : '<button class="btn danger block" id="iDel">🗑 Xóa ngày này</button>'}`;
+  openSheet(isNew ? 'Thêm ngày' : 'Sửa ngày', html, async () => {
+    const name = $('#iName').value.trim();
+    if (!name) { alert('Chưa nhập tên ngày.'); return false; }
+    const d = dateBoxGet('idate', true);
+    if (!d.ok) { alert('Ngày: ' + d.err); return false; }
+    Object.assign(it, { name, date: d.dt, note: $('#iNote').value.trim(), r: remindGet('ir') });
+    if (isNew) data.items.push(it);
+    await save();
+    toast('Đã lưu');
+  });
+  bindRemind('ir', 'i', () => sampleVars('i', $('#iName').value.trim(), '', dateBoxGet('idate', false).dt));
+  bindDateBox('idate', () => $('#rb_ir').upd());
+  $('#iName').oninput = () => $('#rb_ir').upd();
+  if ($('#iDel')) $('#iDel').onclick = async () => {
+    if (!confirm(`Xóa "${it.name}"?`)) return;
+    data.items = data.items.filter(x => x !== it);
+    await save(); closeSheet(); render(); toast('Đã xóa');
+  };
+}
+
+/* ----- Cài đặt ----- */
+function viewSet() {
+  const s = data.settings;
+  const lockOpt = [[0, 'Ngay khi rời app'], [1, 'Sau 1 phút'], [5, 'Sau 5 phút'], [15, 'Sau 15 phút']];
+  return `
+  <div class="grp"><h3>⏰ Nhắc nhở</h3>
+    <label class="f"><span class="l">Báo "sắp đến" trước bao nhiêu ngày (cài đặt chung)</span>
+      <input class="inp" id="sSoon" inputmode="numeric" maxlength="3" value="${s.soon}"></label>
+    <div class="muted small">Mỗi ngày có thể đặt riêng số ngày báo trước trong màn hình sửa.</div>
+    <div class="line"><span>Hiện số trên icon app</span><input type="checkbox" class="sw" id="sBadge"${s.badge ? ' checked' : ''}></div>
+    <div class="muted small">Số trên icon = số ngày đang "sắp đến". Chỉ cập nhật khi mở app. Cần cài app vào màn hình chính và cho phép thông báo.</div>
+  </div>
+  <div class="grp"><h3>📅 Thêm vào Lịch iPhone</h3>
+    <div class="muted small">Tạo file lịch (.ics) để app <b>Lịch</b> của iPhone tự báo, kể cả khi không mở MyMemory. Ngày âm lịch được đổi sẵn sang ngày dương cho các năm tới. Thêm/sửa người thì tạo lại file.</div>
+    <label class="f"><span class="l">Số năm</span><select class="inp" id="sIcsY">${[3, 5, 10, 20].map(y => `<option${y === s.icsYears ? ' selected' : ''}>${y}</option>`).join('')}</select></label>
+    <label class="f"><span class="l">Giờ báo</span><input class="inp" type="time" id="sIcsT" value="${esc(s.icsTime)}"></label>
+    <label class="chk"><input type="checkbox" id="sIcsS"${s.icsShort ? ' checked' : ''}> Không ghi phần ghi chú vào Lịch (an toàn hơn)</label>
+    <button class="btn primary block" id="sIcs">📤 Tạo file lịch</button>
+    <div class="muted small" style="margin-top:6px">⚠️ App Lịch không có mã PIN: ai mở được iPhone thì xem được các sự kiện này.</div>
+  </div>
+  <div class="grp"><h3>🔒 Bảo mật</h3>
+    <label class="f"><span class="l">Tự khóa app</span><select class="inp" id="sLock">${lockOpt.map(([v, t]) => `<option value="${v}"${v === s.lockMin ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+    <div class="line"><span>Mở khóa bằng Face ID</span><input type="checkbox" class="sw" id="sBio"${vault.bio ? ' checked' : ''}></div>
+    <button class="btn block" id="sPin">🔑 Đổi mã PIN</button>
+    <button class="btn block" id="sLockNow">🔒 Khóa ngay</button>
+  </div>
+  <div class="grp"><h3>💾 Sao lưu</h3>
+    <div class="muted small">File sao lưu được mã hóa bằng mã PIN hiện tại. Khôi phục cần đúng mã PIN lúc sao lưu. Nên lưu vào iCloud Drive (app <b>Tệp</b>).</div>
+    <button class="btn block" id="sBak">📤 Sao lưu ra file</button>
+    <button class="btn block" id="sRes">📥 Khôi phục từ file</button>
+    <input type="file" id="sFile" accept=".json,application/json" hidden>
+    <button class="btn danger block" id="sWipe">🗑 Xóa toàn bộ dữ liệu</button>
+  </div>
+  <p class="muted center" style="text-align:center">MyMemory v${VER} · ${data.people.length} người · ${data.items.length} ngày lễ</p>`;
+}
+function bindSet() {
+  const s = data.settings;
+  $('#sSoon').onchange = async e => { const v = parseInt(e.target.value, 10); s.soon = isNaN(v) ? 7 : Math.min(365, Math.max(0, v)); e.target.value = s.soon; await save(); toast('Đã lưu'); };
+  $('#sLock').onchange = async e => { s.lockMin = +e.target.value; await save(); toast('Đã lưu'); };
+  $('#sIcsY').onchange = async e => { s.icsYears = +e.target.value; await save(); };
+  $('#sIcsT').onchange = async e => { s.icsTime = e.target.value || '07:00'; await save(); };
+  $('#sIcsS').onchange = async e => { s.icsShort = e.target.checked; await save(); };
+  $('#sBadge').onchange = async e => {
+    if (e.target.checked) {
+      if (!navigator.setAppBadge) { e.target.checked = false; return alert('Trình duyệt này không hỗ trợ số trên icon. Hãy cài app vào màn hình chính rồi mở từ icon.'); }
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        const p = await Notification.requestPermission();
+        if (p !== 'granted') { e.target.checked = false; return alert('Cần cho phép thông báo để hiện số trên icon.'); }
+      }
+    }
+    s.badge = e.target.checked; await save();
+    if (!s.badge && navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
+  };
+  $('#sBio').onchange = async e => {
+    if (e.target.checked) {
+      if (!await bioAvailable()) { e.target.checked = false; return alert('iPhone này không dùng được Face ID cho web app.'); }
+      try { await enableBio(); toast('Đã bật Face ID'); } catch (err) { e.target.checked = false; alert(bioErr(err)); }
+    } else {
+      if (!confirm('Tắt mở khóa bằng Face ID?')) { e.target.checked = true; return; }
+      vault.bio = null; saveVault(); toast('Đã tắt Face ID');
+    }
+  };
+  $('#sPin').onclick = changePin;
+  $('#sLockNow').onclick = () => lock();
+  $('#sIcs').onclick = exportIcs;
+  $('#sBak').onclick = backup;
+  $('#sRes').onclick = () => $('#sFile').click();
+  $('#sFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restore(f); };
+  $('#sWipe').onclick = async () => {
+    const t = prompt('Xóa toàn bộ dữ liệu và mã PIN. Không khôi phục được (trừ khi có file sao lưu).\nGõ chữ XOA để xác nhận:');
+    if (t !== 'XOA') return;
+    localStorage.removeItem(LS_VAULT); localStorage.removeItem(LS_FAIL);
+    if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
+    location.reload();
+  };
+}
+async function changePin() {
+  const old = await showPin({ title: 'Nhập mã PIN hiện tại', cancel: true, check: async p => (await tryPin(p)) ? true : 'Sai mã PIN.' });
+  if (old == null) return;
+  const pin = await askNewPin('Nhập mã PIN mới');
+  if (pin == null) return;
+  const salt = rand(16);
+  vault.salt = b64(salt); vault.iter = ITER;
+  vault.w = await aesEnc(await pinKek(pin, salt, ITER), rawKey);
+  saveVault();
+  toast('Đã đổi mã PIN');
+}
+
+/* ----- Lưu file (sao lưu, lịch) ----- */
+async function shareFile(name, text, type) {
+  const file = new File([text], name, { type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+function ymd(jd) { const [d, m, y] = jdToDate(jd); return `${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}`; }
+async function backup() {
+  const [d, m, y] = jdToDate(todayJd());
+  const bak = { app: 'MyMemory', v: 1, created: new Date().toISOString(), salt: vault.salt, iter: vault.iter, w: vault.w, data: vault.data };
+  await shareFile(`MyMemory-${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}.json`, JSON.stringify(bak), 'application/json');
+}
+async function restore(file) {
+  let bak;
+  try { bak = JSON.parse(await file.text()); } catch (e) { return alert('File không đúng định dạng.'); }
+  if (!bak || bak.app !== 'MyMemory' || !bak.w || !bak.data) return alert('Đây không phải file sao lưu của MyMemory.');
+  let got = null;
+  const pin = await showPin({ title: 'Mã PIN của bản sao lưu', sub: 'Nhập mã PIN lúc tạo bản sao lưu', cancel: true, check: async p => {
+    try {
+      const raw = await aesDec(await pinKek(p, unb64(bak.salt), bak.iter), bak.w);
+      got = fixData(JSON.parse(td.decode(await aesDec(await importData(raw), bak.data))));
+      return true;
+    } catch (e) { return 'Sai mã PIN.'; }
+  } });
+  if (pin == null || !got) return;
+  if (!confirm(`Bản sao lưu có ${got.people.length} người, ${got.items.length} ngày lễ.\nThay toàn bộ dữ liệu hiện tại bằng bản này?`)) return;
+  data = got;
+  await save(); render(); toast('Đã khôi phục');
+}
+
+/* ----- Xuất file lịch .ics ----- */
+function icsEsc(s) { return String(s).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;'); }
+function icsFold(line) {    // mỗi dòng tối đa 75 byte (UTF-8)
+  let out = '', n = 0;
+  for (const ch of line) {
+    const b = te.encode(ch).length;
+    if (n + b > 74) { out += '\r\n '; n = 1; }
+    out += ch; n += b;
+  }
+  return out;
+}
+function icsDur(min) {      // số phút (âm = trước) → -P6DT17H0M
+  const sign = min < 0 ? '-' : '', a = Math.abs(min);
+  return `${sign}P${INT(a / 1440)}DT${INT((a % 1440) / 60)}H${a % 60}M`;
+}
+async function exportIcs() {
+  const s = data.settings, today = todayJd(), endJd = today + 366 * s.icsYears;
+  const [hh, mm] = (s.icsTime || '07:00').split(':').map(Number), tmin = hh * 60 + (mm || 0);
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//MyMemory//VI', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:MyMemory'];
+  let count = 0;
+  for (const src of sources(false)) {
+    const base = src.dt.c === 'l' ? lunarOf(today)[2] : jdToDate(today)[2];
+    for (let yr = base - 1; yr <= base + s.icsYears + 1; yr++) {
+      if (src.dt.y && yr < src.dt.y) continue;
+      const jd = occForYear(src.dt, yr);
+      if (jd == null || jd < today || jd > endJd) continue;
+      const o = { jd, yr }, v = varsOf(src, o, 0), D = DEF[src.kind], soon = soonOf(src.r);
+      const title = ICON[src.kind] + ' ' + fill(D.l, v);
+      L.push('BEGIN:VEVENT', `UID:${src.kind}-${src.id}-${yr}@mymemory`, `DTSTAMP:${now}`,
+        `DTSTART;VALUE=DATE:${ymd(jd)}`, `DTEND;VALUE=DATE:${ymd(jd + 1)}`, 'TRANSP:TRANSPARENT', 'SUMMARY:' + icsEsc(title));
+      if (!s.icsShort) {
+        const desc = [fill(src.r.t || D.t, v), mkOcc(src, o, jd).info, (src.p ? src.p.note : src.it.note) || ''].filter(Boolean).join('\n');
+        L.push('DESCRIPTION:' + icsEsc(desc));
+      }
+      if (soon > 0) L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(fill(src.r.s || D.s, Object.assign({}, v, { n: soon }))), 'TRIGGER:' + icsDur(-soon * 1440 + tmin), 'END:VALARM');
+      L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(fill(src.r.t || D.t, v)), 'TRIGGER:' + icsDur(tmin), 'END:VALARM', 'END:VEVENT');
+      count++;
+    }
+  }
+  L.push('END:VCALENDAR');
+  if (!count) return alert('Không có ngày nào đang bật nhắc.');
+  if (!confirm(`Tạo file lịch gồm ${count} sự kiện (${s.icsYears} năm tới)?\n\nSau đó chọn "Lưu vào Tệp", rồi mở file trong app Tệp → "Thêm tất cả".`)) return;
+  await shareFile('MyMemory.ics', L.map(icsFold).join('\r\n') + '\r\n', 'text/calendar');
+}
+
+/* ----- Số trên icon app ----- */
+function updateBadge() {
+  if (!data || !navigator.setAppBadge) return;
+  if (!data.settings.badge) return;
+  const today = todayJd(), n = allOcc(today).filter(o => o.days <= o.soon).length;
+  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+start();
+</script>
+</body>
+</html>
