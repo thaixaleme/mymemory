@@ -151,9 +151,6 @@ img.avatar.dead{filter:grayscale(1)}
 .tree-out{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:8px -12px 10px}
 .tree-box{position:relative;margin:0 auto}
 .tree-wrap{position:absolute;left:0;top:0;transform-origin:0 0}
-.tree-lv{position:absolute;left:0;right:0;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;pointer-events:none;z-index:2}
-.tree-lv span{font-size:13px;font-weight:700;color:var(--acc);padding:1px 2px}
-.tree-lv button{pointer-events:auto;font-size:12px;font-weight:700;border:1px dashed var(--acc);color:var(--acc);background:var(--bg);border-radius:8px;padding:2px 10px}
 .tree-sc{height:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .tree{display:flex;justify-content:center;align-items:flex-start;gap:6px;width:max-content;min-width:100%;padding:0 6px}
 .tu{display:flex;flex-direction:column;align-items:center}
@@ -236,6 +233,9 @@ textarea.inp{min-height:70px;resize:vertical}
 .pad button.fn{background:none;box-shadow:none;font-size:15px;color:var(--acc);font-weight:700}
 .pad button.fn.bio{font-size:30px}
 .pad button:disabled{visibility:hidden}
+/* Mở app có Face ID: chọn 1 trong 2 nút (chạm nút Face ID thì iOS quét mặt ngay, không hiện bảng passkey) */
+.pin-ch{display:flex;flex-direction:column;gap:12px;margin:28px auto 0;max-width:260px}
+.pin-ch .btn{font-size:18px;padding:15px}
 .pin-cancel{margin-top:14px;border:0;background:none;color:var(--acc);font-weight:700;font-size:16px;padding:8px 18px}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(30,20,25,.92);color:#fff;
@@ -276,6 +276,10 @@ textarea.inp{min-height:70px;resize:vertical}
     <p id="pinS"></p>
     <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <p id="pinM"></p>
+    <div class="pin-ch" id="pinCh" hidden>
+      <button class="btn primary" id="pinFace">🙂 Face ID</button>
+      <button class="btn" id="pinNum">🔢 Mã PIN</button>
+    </div>
     <div class="pad" id="pinPad">
       <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
       <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
@@ -669,9 +673,15 @@ function showPin(opt) {
     L.title = opt.bio ? 'Mở bằng Face ID' : 'Hủy';
     $('#pinX').hidden = !(opt.bio && opt.cancel);   // có nút Face ID thì nút Hủy nằm riêng bên dưới
     pinDots();
+    pinMode(!!(opt.bio && opt.choose));   // mở app có Face ID: hiện 2 nút trước, chưa hiện bàn phím
     $('#pin').hidden = false;
-    if (opt.bio && opt.autoBio) setTimeout(pinBio, 300);
   });
+}
+function pinMode(choose) {   // true: 2 nút Face ID / Mã PIN, false: bàn phím số
+  $('#pinCh').hidden = !choose;
+  $('#pinDots').hidden = $('#pinPad').hidden = choose;
+  $('#pinT').textContent = choose ? 'MyMemory đang khóa' : pinState.opt.title;
+  $('#pinS').textContent = choose ? '' : pinState.opt.sub || '';
 }
 function pinDots() { [...$('#pinDots').children].forEach((e, i) => e.classList.toggle('f', i < pinState.buf.length)); }
 function pinClose(val) { const s = pinState; pinState = null; $('#pin').hidden = true; s.resolve(val); }
@@ -687,7 +697,8 @@ async function pinBio() {
   const r = await s.opt.bio();
   s.busy = false;
   if (pinState !== s) return;
-  if (r === true) pinClose('bio'); else $('#pinM').textContent = r || '';
+  if (r === true) pinClose('bio');
+  else { pinMode(false); $('#pinM').textContent = r || ''; }   // Face ID không được → chuyển sang nhập mã PIN
 }
 async function pinKey(k) {
   const s = pinState;
@@ -705,7 +716,9 @@ async function pinKey(k) {
   else { s.buf = ''; pinDots(); pinShake(r); }
 }
 $('#pinPad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) pinKey(b.dataset.k); });
-$('#pinX').onclick = () => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
+$('#pinFace').onclick = () => pinBio();
+$('#pinNum').onclick = () => { if (pinState && !pinState.busy) pinMode(false); };
+$('#pinX').onclick =() => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
 document.addEventListener('keydown', e => {
   if (!pinState) return;
   if (/^[0-9]$/.test(e.key)) pinKey(e.key);
@@ -749,7 +762,7 @@ async function start() {
     }
     return;
   }
-  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, autoBio: true });
+  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, choose: true });
   enterApp();
 }
 function lock() {
@@ -858,10 +871,9 @@ function viewPeople(today) {
   let h = `<div class="seg">${[['tree', '🌳 Sơ đồ gia đình'], ['list', '📋 Danh sách']].map(([v, t]) =>
     `<button type="button" data-act="pv" data-v="${v}" class="${ui.pv === v ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   if (ui.pv === 'tree') return h + viewTree(today);
-  h += `<button class="btn primary block" data-act="addp">＋ Thêm người</button>`;
-  if (!data.people.length) return h + `<div class="empty">Chưa có ai. Bấm <b>＋ Thêm người</b> để thêm vợ, bố mẹ, ông bà…</div>`;
-  // thứ tự = thứ tự thêm vào (đổi được bằng cách nhấn giữ rồi kéo)
-  return h + `<p class="muted small">Nhấn giữ một người rồi kéo lên / xuống để sắp xếp lại.</p>` + data.people.map(p => personRow(p, today)).join('');
+  if (!data.people.length) return h + `<div class="empty">Chưa có ai. Bấm <b>＋</b> ở trên để thêm.</div>`;
+  // thứ tự = thứ tự thêm vào (đổi được bằng cách nhấn giữ rồi kéo). Thêm người: nút ＋ trên đầu màn hình
+  return h + data.people.map(p => personRow(p, today)).join('');
 }
 /* ----- Sắp xếp danh sách: nhấn giữ 0.45 giây rồi kéo lên / xuống ----- */
 let drag = null, suppressClick = false;
@@ -910,14 +922,15 @@ function beginDrag(row, y0) {
   };
   document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
 }
+// Danh sách tối giản: ảnh, tên, 1 dòng ngắn (còn sống: ngày sinh + tuổi, đã mất: ngày mất). Xem đầy đủ: bấm vào để mở màn hình sửa
+const fmtShort = dt => !dt ? '' : dt.c === 'l' ? `${dt.d}/${dt.m}${dt.lp ? ' nhuận' : ''} âm` + (dt.y ? ` (${dt.y})` : '')
+  : `${dt.d}/${dt.m}` + (dt.y ? `/${dt.y}` : '');
 function personRow(p, today, ro) {   // ro: chỉ xem (không mở màn hình sửa)
-  const s = [];
-  if (p.birth) { const a = p.dead ? null : ageNow(p, today); s.push(`🎂 ${fmtDate(p.birth)}${a != null ? ` (${a} tuổi)` : ''}${p.dead ? '' : nextSolarText(p.birth, today, 'Sinh nhật sắp tới')}`); }
-  if (p.dead) s.push(`🕯️ Mất: ${p.death ? fmtDate(p.death) + nextSolarText(p.death, today, 'Giỗ sắp tới') : 'không rõ ngày'}`);
+  const a = p.dead ? null : ageNow(p, today);
+  const s = p.dead ? `🕯️ ${fmtShort(p.death)}` : p.birth ? `🎂 ${fmtShort(p.birth)}${a != null ? ` · ${a} tuổi` : ''}` : '';
   return `<div class="row${ro ? ' ro' : ''}" data-act="edit" data-kind="p" data-id="${esc(p.id)}" data-q="${esc(p.name.toLowerCase())}">
     ${avHtml(p, 'avatar')}
-    <div class="grow"><div class="t">${esc(p.name)}${p.me ? '<span class="chip">Tôi</span>' : ''}${p.dead ? '<span class="chip dead">Đã mất</span>' : ''}</div>
-    <div class="s">${s.map(esc).join('<br>') || 'Chưa nhập ngày'}</div></div></div>`;
+    <div class="grow"><div class="t">${esc(p.name)}</div>${s ? `<div class="s">${esc(s)}</div>` : ''}</div></div>`;
 }
 // Ảnh đại diện: có ảnh thì hiện ảnh, không thì chữ cái đầu của tên.
 // Màu nền chọn theo id của người (mỗi người 1 màu cố định), xám nếu đã mất.
@@ -934,7 +947,7 @@ function avHtml(p, base) {
 /* ----- Sơ đồ gia đình -----
    Chỉ người "đứng riêng" lưu cấp (lv). Con lấy cấp của bố/mẹ + 1, vợ/chồng lấy cấp của người kia.
    "Đơn vị" = 1 người + vợ/chồng của người đó (đứng cạnh nhau, nối bằng ❤). */
-const TP = 150, TL = 26, TC = 84, TA = 32;   // khoảng cách giữa 2 cấp, chiều cao nhãn cấp, chiều cao thẻ, đường nối dưới thẻ
+const TP = 150, TL = 6, TC = 84, TA = 32;   // khoảng cách giữa 2 cấp, lề trên, chiều cao thẻ, đường nối dưới thẻ
 const LVN = ['👴 Bố mẹ', '👫 Anh chị em', '👶 Con cháu'];   // sơ đồ 3 thế hệ: tên của từng cấp
 const lvName = L => LVN[L - 1] || 'Cấp ' + L;
 function treeInfo() {
@@ -988,7 +1001,6 @@ function viewTree(today) {
   // tree-out: khung cuộn ngang; tree-box: kích thước sau khi phóng to/thu nhỏ; tree-wrap: sơ đồ kích thước gốc (fitTree() tính tỉ lệ)
   // min-height: hàng con cháu xếp nhiều dòng thì sơ đồ tự cao thêm
   let h = `<div class="tree-out"><div class="tree-box"><div class="tree-wrap" style="min-height:${rows * TP - TP + TL + TC + 8}px;padding-bottom:8px">`;
-  for (let L = 1; L <= rows; L++) h += `<div class="tree-lv" style="top:${(L - 1) * TP}px"><span>${lvName(L)}</span></div>`;
   h += `<div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div></div>`;
   const un = data.people.filter(p => T.lv.get(p.id) == null);
   if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2>` + un.map(p => personRow(p, today, true)).join('');
@@ -998,7 +1010,8 @@ function unitHtml(h, T, occ) {
   const mem = [h, ...spousesOf(h)];
   const kids = sortP(data.people.filter(x => x.par === h.id && isHead(x, T)));
   let s = `<div class="uc${mem.some(m => m.me) ? ' me' : ''}">` + mem.map((m, i) => (i ? '<span class="hrt">❤</span>' : '') + tpHtml(m, occ)).join('') + '</div>';
-  if (kids.length && T.lv.get(h.id) + 1 >= LVN.length)   // hàng con cháu: gom vào 1 khung, 2 cột (khung có lề 6px nên đường nối ngắn hơn 6px)
+  // hàng con cháu (cấp 3 trở xuống, các con chưa có con): gom vào 1 khung, 2 cột (khung có lề 6px nên đường nối ngắn hơn 6px)
+  if (kids.length && T.lv.get(h.id) + 1 >= LVN.length && kids.every(k => !data.people.some(x => x.par === k.id)))
     s += `<div class="vl" style="height:${TP - TC - 6}px"></div><div class="kg" style="grid-template-columns:repeat(${Math.min(2, kids.length)},auto)">` +
       kids.map(k => unitHtml(k, T, occ)).join('') + '</div>';
   else if (kids.length) s += `<div class="vl" style="height:${TA}px"></div><div class="kids">` +
