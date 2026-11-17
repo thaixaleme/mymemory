@@ -152,23 +152,23 @@ img.avatar.dead{filter:grayscale(1)}
 .tree-box{position:relative;margin:0 auto}
 .tree-wrap{position:absolute;left:0;top:0;transform-origin:0 0}
 .tree-sc{height:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
-.tree{display:flex;justify-content:center;align-items:flex-start;gap:6px;width:max-content;min-width:100%;padding:0 6px}
+.tree{display:flex;justify-content:center;align-items:flex-start;gap:4px;width:max-content;min-width:100%;padding:0 4px}
 .tu{display:flex;flex-direction:column;align-items:center}
-.uc{height:84px;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:3px 1px}
+.uc{height:96px;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:3px 0}
 .uc.me{border:2px solid #3B82F6}
 .uc .hrt{color:var(--acc);font-size:9px;margin:0 -2px}
-.tp{width:80px;text-align:center;cursor:pointer}   /* đủ chứa tên khoảng 10 ký tự, ví dụ "Phong Thái" */
-.tp .avatar{width:44px;height:44px;margin:0 auto 2px;font-size:18px}
-.tp .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
-.tp .st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
+.tp{width:60px;text-align:center;cursor:pointer}   /* tên dài xuống 2 dòng, ví dụ "Phong / Thái" */
+.tp .avatar{width:38px;height:38px;margin:0 auto 2px;font-size:16px}
+.tp .nm{font-size:12px;font-weight:700;line-height:13px;height:26px;overflow:hidden;padding:0 1px;display:flex;align-items:center;justify-content:center}
+.tp .st{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0}
 .tp .st .today{color:var(--today);font-weight:700}
 .tp .st .near{color:var(--near);font-weight:700}
 .tp .st .soon{color:#A16207;font-weight:700}
 .vl{width:0;border-left:1.5px solid var(--muted)}
 .kids{display:flex;align-items:flex-start}
-.kid{position:relative;display:flex;flex-direction:column;align-items:center;padding:0 3px}
+.kid{position:relative;display:flex;flex-direction:column;align-items:center;padding:0 2px}
 /* Hàng con cháu: con của 1 cặp gom vào 1 khung, xếp 2 cột, nhiều con thì khung dài xuống */
-.kg{display:grid;gap:6px 4px;padding:6px 4px;border:1.5px solid var(--muted);border-radius:14px;background:rgba(255,255,255,.35)}
+.kg{display:grid;gap:6px 3px;padding:5px 3px;border:1.5px solid var(--muted);border-radius:14px;background:rgba(255,255,255,.35)}
 @media (prefers-color-scheme:dark){.kg{background:rgba(255,255,255,.05)}}
 .kid::before,.kid::after{content:'';position:absolute;top:0;width:50%;border-top:1.5px solid var(--muted)}
 .kid::before{left:0}
@@ -825,7 +825,7 @@ function fitTree() {
   const tw = tree.scrollWidth, H = wrap.offsetHeight;
   const availW = out.clientWidth;
   const availH = window.innerHeight - (out.getBoundingClientRect().top + window.scrollY) - $('nav').offsetHeight - 24;
-  const s = Math.max(0.55, Math.min(1.5, availW * 0.9 / tw, Math.max(availH, 250) * 0.85 / H));
+  const s = Math.max(0.55, Math.min(1.5, availW * 0.96 / tw, Math.max(availH, 250) * 0.85 / H));
   const w = Math.max(tw, availW / s);    // sơ đồ hẹp hơn màn hình thì nằm giữa
   wrap.style.width = w + 'px'; wrap.style.transform = `scale(${s})`;
   box.style.width = w * s + 'px'; box.style.height = H * s + 'px';
@@ -946,7 +946,7 @@ function avHtml(p, base) {
 /* ----- Sơ đồ gia đình -----
    Chỉ người "đứng riêng" lưu cấp (lv). Con lấy cấp của bố/mẹ + 1, vợ/chồng lấy cấp của người kia.
    "Đơn vị" = 1 người + vợ/chồng của người đó (đứng cạnh nhau, nối bằng ❤). */
-const TP = 150, TL = 6, TC = 84, TA = 32;   // khoảng cách giữa 2 cấp, lề trên, chiều cao thẻ, đường nối dưới thẻ
+const TP = 162, TL = 6, TC = 96, TA = 32;   // khoảng cách giữa 2 cấp, lề trên, chiều cao thẻ, đường nối dưới thẻ
 const LVN = ['👴 Bố mẹ', '👫 Anh chị em', '👶 Con cháu'];   // sơ đồ 3 thế hệ: tên của từng cấp
 const lvName = L => LVN[L - 1] || 'Cấp ' + L;
 function treeInfo() {
@@ -1019,7 +1019,7 @@ function unitHtml(h, T, occ) {
 }
 function tpHtml(p, occ) {
   const o = occ.get(p.id);
-  const st = o ? `<span class="${o.cls}">${o.src.kind === 'd' ? '🕯️' : '🎂'} ${o.days === 0 ? 'Hôm nay' : 'còn ' + o.days + ' ngày'}</span>`
+  const st = o ? `<span class="${o.cls}">${o.src.kind === 'd' ? '🕯️' : '🎂'} ${o.days === 0 ? 'Hôm nay' : o.days + ' ngày'}</span>`
     : p.dead ? 'Đã mất' : (a => a != null ? a + ' tuổi' : '')(ageNow(p, todayJd()));
   return `<div class="tp" data-act="edit" data-kind="p" data-id="${esc(p.id)}">${avHtml(p, 'avatar')}<div class="nm">${esc(p.name)}</div><div class="st">${st}</div></div>`;
 }
