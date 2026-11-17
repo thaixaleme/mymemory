@@ -160,7 +160,9 @@ img.avatar.dead{filter:grayscale(1)}
 .tp{width:60px;text-align:center;cursor:pointer}   /* tên dài xuống 2 dòng, ví dụ "Phong / Thái" */
 .tp .avatar{width:38px;height:38px;margin:0 auto 2px;font-size:16px}
 .tp .nm{font-size:12px;font-weight:700;line-height:13px;height:26px;overflow:hidden;padding:0 1px;display:flex;align-items:center;justify-content:center}
-.tp .st{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0}
+.tp.dead .nm{color:#6B7280}
+@media (prefers-color-scheme:dark){.tp.dead .nm{color:#9CA3AF}}
+.tp .st{min-height:15px;font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0}
 .tp .st .today{color:var(--today);font-weight:700}
 .tp .st .near{color:var(--near);font-weight:700}
 .tp .st .soon{color:#A16207;font-weight:700}
@@ -1020,8 +1022,8 @@ function unitHtml(h, T, occ) {
 function tpHtml(p, occ) {
   const o = occ.get(p.id);
   const st = o ? `<span class="${o.cls}">${o.src.kind === 'd' ? '🕯️' : '🎂'} ${o.days === 0 ? 'Hôm nay' : o.days + ' ngày'}</span>`
-    : p.dead ? 'Đã mất' : (a => a != null ? a + ' tuổi' : '')(ageNow(p, todayJd()));
-  return `<div class="tp" data-act="edit" data-kind="p" data-id="${esc(p.id)}">${avHtml(p, 'avatar')}<div class="nm">${esc(p.name)}</div><div class="st">${st}</div></div>`;
+    : p.dead ? '' : (a => a != null ? a + ' tuổi' : '')(ageNow(p, todayJd()));   // người đã mất: không hiện chữ, chỉ ảnh + tên màu xám
+  return `<div class="tp${p.dead ? ' dead' : ''}" data-act="edit" data-kind="p" data-id="${esc(p.id)}">${avHtml(p, 'avatar')}<div class="nm">${esc(p.name)}</div><div class="st">${st}</div></div>`;
 }
 function viewItems(today) {
   let h = `<button class="btn primary block" data-act="addi">＋ Thêm ngày lễ / kỷ niệm</button>
