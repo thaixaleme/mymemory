@@ -157,7 +157,7 @@ img.avatar.dead{filter:grayscale(1)}
 .uc{height:84px;display:flex;align-items:center;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:3px 1px}
 .uc.me{border:2px solid #3B82F6}
 .uc .hrt{color:var(--acc);font-size:9px;margin:0 -2px}
-.tp{width:52px;text-align:center;cursor:pointer}
+.tp{width:80px;text-align:center;cursor:pointer}   /* đủ chứa tên khoảng 10 ký tự, ví dụ "Phong Thái" */
 .tp .avatar{width:44px;height:44px;margin:0 auto 2px;font-size:18px}
 .tp .nm{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
 .tp .st{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px}
@@ -233,9 +233,6 @@ textarea.inp{min-height:70px;resize:vertical}
 .pad button.fn{background:none;box-shadow:none;font-size:15px;color:var(--acc);font-weight:700}
 .pad button.fn.bio{font-size:30px}
 .pad button:disabled{visibility:hidden}
-/* Mở app có Face ID: chọn 1 trong 2 nút (chạm nút Face ID thì iOS quét mặt ngay, không hiện bảng passkey) */
-.pin-ch{display:flex;flex-direction:column;gap:12px;margin:28px auto 0;max-width:260px}
-.pin-ch .btn{font-size:18px;padding:15px}
 .pin-cancel{margin-top:14px;border:0;background:none;color:var(--acc);font-weight:700;font-size:16px;padding:8px 18px}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(30,20,25,.92);color:#fff;
@@ -276,16 +273,13 @@ textarea.inp{min-height:70px;resize:vertical}
     <p id="pinS"></p>
     <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <p id="pinM"></p>
-    <div class="pin-ch" id="pinCh" hidden>
-      <button class="btn primary" id="pinFace">🙂 Face ID</button>
-      <button class="btn" id="pinNum">🔢 Mã PIN</button>
-    </div>
     <div class="pad" id="pinPad">
       <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
       <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
       <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
       <button data-k="L" class="fn" id="pinL"></button><button data-k="0">0</button><button data-k="B" class="fn" id="pinB">⌫</button>
     </div>
+    <button class="pin-cancel" id="pinUse" hidden>Nhập mã PIN</button>
     <button class="pin-cancel" id="pinX" hidden>Hủy</button>
   </div>
 </div>
@@ -673,15 +667,21 @@ function showPin(opt) {
     L.title = opt.bio ? 'Mở bằng Face ID' : 'Hủy';
     $('#pinX').hidden = !(opt.bio && opt.cancel);   // có nút Face ID thì nút Hủy nằm riêng bên dưới
     pinDots();
-    pinMode(!!(opt.bio && opt.choose));   // mở app có Face ID: hiện 2 nút trước, chưa hiện bàn phím
+    const auto = !!(opt.bio && opt.autoBio);
+    pinMode(auto);   // mở app có Face ID: tự quét mặt trước, chưa hiện bàn phím
     $('#pin').hidden = false;
+    if (auto) pinAutoBio();
   });
 }
-function pinMode(choose) {   // true: 2 nút Face ID / Mã PIN, false: bàn phím số
-  $('#pinCh').hidden = !choose;
-  $('#pinDots').hidden = $('#pinPad').hidden = choose;
-  $('#pinT').textContent = choose ? 'MyMemory đang khóa' : pinState.opt.title;
-  $('#pinS').textContent = choose ? '' : pinState.opt.sub || '';
+// Tự gọi Face ID: chỉ khi app đang hiện trên màn hình (app đang ở nền thì iOS từ chối ngay → đợi lúc mở lại app)
+function pinAutoBio() {
+  if (!document.hidden) setTimeout(pinBio, 400);
+}
+function pinMode(wait) {   // true: đang chờ Face ID (ẩn bàn phím), false: bàn phím nhập mã PIN
+  $('#pinDots').hidden = $('#pinPad').hidden = wait;
+  $('#pinUse').hidden = !wait;
+  $('#pinT').textContent = wait ? 'MyMemory đang khóa' : pinState.opt.title;
+  $('#pinS').textContent = wait ? '' : pinState.opt.sub || '';
 }
 function pinDots() { [...$('#pinDots').children].forEach((e, i) => e.classList.toggle('f', i < pinState.buf.length)); }
 function pinClose(val) { const s = pinState; pinState = null; $('#pin').hidden = true; s.resolve(val); }
@@ -692,10 +692,10 @@ function pinShake(msg) {
 }
 async function pinBio() {
   const s = pinState;
-  if (!s || s.busy || !s.opt.bio) return;
-  s.busy = true;
+  if (!s || s.busy || s.bioBusy || !s.opt.bio) return;
+  s.bioBusy = true;   // cờ riêng cho Face ID: đang chờ Face ID thì bàn phím mã PIN vẫn bấm được
   const r = await s.opt.bio();
-  s.busy = false;
+  s.bioBusy = false;
   if (pinState !== s) return;
   if (r === true) pinClose('bio');
   else { pinMode(false); $('#pinM').textContent = r || ''; }   // Face ID không được → chuyển sang nhập mã PIN
@@ -716,9 +716,8 @@ async function pinKey(k) {
   else { s.buf = ''; pinDots(); pinShake(r); }
 }
 $('#pinPad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) pinKey(b.dataset.k); });
-$('#pinFace').onclick = () => pinBio();
-$('#pinNum').onclick = () => { if (pinState && !pinState.busy) pinMode(false); };
-$('#pinX').onclick =() => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
+$('#pinUse').onclick = () => { if (pinState) pinMode(false); };   // Face ID không hiện / bị treo: vẫn nhập mã PIN được
+$('#pinX').onclick = () => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
 document.addEventListener('keydown', e => {
   if (!pinState) return;
   if (/^[0-9]$/.test(e.key)) pinKey(e.key);
@@ -762,7 +761,7 @@ async function start() {
     }
     return;
   }
-  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, choose: true });
+  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, autoBio: true });
   enterApp();
 }
 function lock() {
@@ -784,7 +783,7 @@ document.addEventListener('visibilitychange', () => {
   } else if (!locked && data) {
     if (Date.now() - hiddenAt > data.settings.lockMin * 60000) lock();
     else if (tab === 'up') render();     // ngày có thể đã sang ngày mới
-  }
+  } else if (locked && pinState && pinState.opt.autoBio) pinAutoBio();   // mở lại app khi đang khóa: gọi Face ID lại
 });
 
 /* =====================================================================
