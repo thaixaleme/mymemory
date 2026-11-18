@@ -216,7 +216,7 @@ textarea.inp{min-height:70px;resize:vertical}
 #sheet .sh-b{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:4px 14px calc(30px + env(safe-area-inset-bottom))}
 #sheet .sh-b>div{max-width:720px;margin:0 auto}
 
-/* Màn hình mã PIN */
+/* Màn hình khóa (vẽ hình; bàn phím số cho mã PIN bản cũ) */
 #pin{position:fixed;inset:0;z-index:40;background:linear-gradient(180deg,#FFE4E6,#FDF2F8);display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
 @media (prefers-color-scheme:dark){#pin{background:linear-gradient(180deg,#2A0A14,#1A0F13)}}
 .pin-in{width:100%;max-width:330px;text-align:center}
@@ -233,8 +233,16 @@ textarea.inp{min-height:70px;resize:vertical}
 .pad button{width:76px;height:76px;border-radius:50%;border:0;background:var(--card);font-size:28px;font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .pad button:active{background:var(--line)}
 .pad button.fn{background:none;box-shadow:none;font-size:15px;color:var(--acc);font-weight:700}
-.pad button.fn.bio{font-size:30px}
 .pad button:disabled{visibility:hidden}
+/* Vẽ hình mở khóa: 9 chấm 3×3, vuốt ngón tay nối các chấm */
+.pat{position:relative;width:264px;height:264px;margin:14px auto 0;touch-action:none;-webkit-user-select:none;user-select:none}
+.pat svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.pat polyline{fill:none;stroke:var(--acc);stroke-width:6;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.pat i{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.pat i.on{background:var(--acc);transform:scale(1.35);box-shadow:0 0 0 9px rgba(225,29,72,.16)}
+.pat.err polyline{stroke:var(--danger)}
+.pat.err i.on{background:var(--danger)}
+.pat.shake{animation:shake .4s}
 .pin-cancel{margin-top:14px;border:0;background:none;color:var(--acc);font-weight:700;font-size:16px;padding:8px 18px}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:rgba(30,20,25,.92);color:#fff;
@@ -267,7 +275,7 @@ textarea.inp{min-height:70px;resize:vertical}
   <div class="sh-b"><div id="shBody"></div></div>
 </div>
 
-<!-- Màn hình nhập mã PIN -->
+<!-- Màn hình khóa: vẽ hình (bàn phím số chỉ dùng khi chuyển từ mã PIN cũ / khôi phục file sao lưu cũ) -->
 <div id="pin" hidden>
   <div class="pin-in">
     <img src="icon-192.png" alt="">
@@ -275,13 +283,13 @@ textarea.inp{min-height:70px;resize:vertical}
     <p id="pinS"></p>
     <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <p id="pinM"></p>
+    <div class="pat" id="pinPat" hidden><svg id="patSvg"></svg><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="pad" id="pinPad">
       <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
       <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
       <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
       <button data-k="L" class="fn" id="pinL"></button><button data-k="0">0</button><button data-k="B" class="fn" id="pinB">⌫</button>
     </div>
-    <button class="pin-cancel" id="pinUse" hidden>Nhập mã PIN</button>
     <button class="pin-cancel" id="pinX" hidden>Hủy</button>
   </div>
 </div>
@@ -293,11 +301,11 @@ textarea.inp{min-height:70px;resize:vertical}
 
 <script>
 'use strict';
-const VER = '1.1';
+const VER = '1.2';
 const LS_VAULT = 'mymemory_vault';   // dữ liệu đã mã hóa
-const LS_FAIL = 'mymemory_fail';     // số lần nhập sai mã PIN
+const LS_FAIL = 'mymemory_fail';     // số lần vẽ sai hình mở khóa
 const LS_UI = 'mymemory_ui';         // tab đang mở (không phải thông tin cá nhân)
-const ITER = 300000;                 // số vòng PBKDF2 khi tạo khóa từ mã PIN
+const ITER = 300000;                 // số vòng PBKDF2 khi tạo khóa từ hình vẽ
 const te = new TextEncoder(), td = new TextDecoder();
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -516,8 +524,8 @@ const daysText = n => n === 0 ? 'Hôm nay' : n === 1 ? 'Ngày mai' : `Còn ${n} 
 
 /* =====================================================================
    MÃ HÓA DỮ LIỆU (AES-GCM 256)
-   - Khóa dữ liệu ngẫu nhiên, được "bọc" bằng khóa tạo từ mã PIN (PBKDF2)
-   - Bật Face ID: khóa dữ liệu được bọc thêm 1 lần bằng khóa từ passkey (WebAuthn PRF)
+   - Khóa dữ liệu ngẫu nhiên, được "bọc" bằng khóa tạo từ hình vẽ mở khóa (PBKDF2)
+   - Hình vẽ được đổi thành chuỗi "p" + số thứ tự các chấm (ví dụ "p0125"); bản cũ dùng mã PIN 6 số
    ===================================================================== */
 const rand = n => crypto.getRandomValues(new Uint8Array(n));
 const b64 = u => { u = new Uint8Array(u); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
@@ -525,10 +533,6 @@ const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 async function pinKek(pin, salt, iter) {
   const base = await crypto.subtle.importKey('raw', te.encode(pin), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-}
-async function bioKek(prf) {
-  const base = await crypto.subtle.importKey('raw', prf, 'HKDF', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: te.encode('MyMemory Face ID') }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
 async function aesEnc(key, bytes) {
   const iv = rand(12);
@@ -539,7 +543,7 @@ async function aesDec(key, o) {
 }
 const importData = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
 
-let vault = null;    // { v, salt, iter, w (khóa bọc bằng PIN), bio, data (dữ liệu đã mã hóa) }
+let vault = null;    // { v, k ('pat' = khóa bằng hình vẽ, không có = mã PIN bản cũ), salt, iter, w (khóa dữ liệu đã bọc), data (dữ liệu đã mã hóa) }
 let rawKey = null, dataKey = null, data = null;   // chỉ có trong bộ nhớ khi đang mở khóa
 let locked = true, hiddenAt = 0;
 function loadVault() { try { return JSON.parse(localStorage.getItem(LS_VAULT)); } catch (e) { return null; } }
@@ -554,59 +558,25 @@ async function openWith(raw) {
   const d = JSON.parse(td.decode(await aesDec(k, vault.data)));
   rawKey = raw; dataKey = k; data = fixData(d);
 }
-async function createVault(pin) {
-  const raw = rand(32), salt = rand(16);
-  vault = { v: 1, salt: b64(salt), iter: ITER, w: await aesEnc(await pinKek(pin, salt, ITER), raw), bio: null, data: null };
-  rawKey = raw; dataKey = await importData(raw); data = defaultData();
+async function createVault(code) {
+  vault = { v: 1, data: null };
+  rawKey = rand(32); dataKey = await importData(rawKey); data = defaultData();
+  await setSecret(code);
   await save();
 }
-async function tryPin(pin) {      // đúng mã PIN → trả về khóa dữ liệu, sai → null
+async function setSecret(code) {   // bọc lại khóa dữ liệu bằng hình vẽ mới (dữ liệu không cần mã hóa lại)
+  const salt = rand(16);
+  Object.assign(vault, { k: 'pat', salt: b64(salt), iter: ITER, w: await aesEnc(await pinKek(code, salt, ITER), rawKey) });
+  delete vault.bio;   // Face ID của bản cũ: bỏ
+  saveVault();
+}
+const secName = () => vault && vault.k === 'pat' ? 'hình vẽ' : 'mã PIN';
+async function tryPin(pin) {      // đúng hình vẽ (hoặc mã PIN bản cũ) → trả về khóa dữ liệu, sai → null
   try { return await aesDec(await pinKek(pin, unb64(vault.salt), vault.iter), vault.w); } catch (e) { return null; }
 }
 function getFail() { try { return JSON.parse(localStorage.getItem(LS_FAIL)) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
 function setFail(f) { localStorage.setItem(LS_FAIL, JSON.stringify(f)); }
 
-/* ----- Face ID (passkey + phần mở rộng PRF, cần iOS 18 trở lên) ----- */
-async function bioAvailable() {
-  try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch (e) { return false; }
-}
-async function bioGet(id, salt) {
-  const a = await navigator.credentials.get({ publicKey: {
-    challenge: rand(32), allowCredentials: [{ type: 'public-key', id }], userVerification: 'required', timeout: 60000,
-    extensions: { prf: { eval: { first: salt } } } } });
-  const r = a.getClientExtensionResults().prf;
-  return r && r.results && r.results.first;
-}
-async function enableBio() {
-  const salt = rand(32);
-  const cred = await navigator.credentials.create({ publicKey: {
-    rp: { name: 'MyMemory' }, user: { id: rand(16), name: 'MyMemory', displayName: 'MyMemory' }, challenge: rand(32),
-    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
-    timeout: 60000, extensions: { prf: { eval: { first: salt } } } } });
-  const ext = cred.getClientExtensionResults().prf;
-  if (!ext || ext.enabled === false) throw new Error('noprf');
-  const id = new Uint8Array(cred.rawId);
-  let out = ext.results && ext.results.first;
-  if (!out) out = await bioGet(id, salt);       // một số máy chỉ trả kết quả PRF khi xác thực lần 2
-  if (!out) throw new Error('noprf');
-  vault.bio = { id: b64(id), salt: b64(salt), w: await aesEnc(await bioKek(out), rawKey) };
-  saveVault();
-}
-function bioErr(e) {
-  if (e && e.message === 'noprf') return 'iPhone này chưa hỗ trợ mở khóa web app bằng Face ID (cần iOS 18 trở lên).';
-  if (e && e.name === 'NotAllowedError') return 'Đã hủy Face ID.';
-  return 'Không dùng được Face ID' + (e && e.name ? ` (${e.name})` : '') + '.';
-}
-async function unlockBio() {
-  try {
-    const out = await bioGet(unb64(vault.bio.id), unb64(vault.bio.salt));
-    if (!out) return 'Không lấy được khóa từ Face ID.';
-    await openWith(await aesDec(await bioKek(out), vault.bio.w));
-    setFail({ n: 0, until: 0 });
-    return true;
-  } catch (e) { return bioErr(e); }
-}
 
 /* =====================================================================
    DỮ LIỆU MẶC ĐỊNH
@@ -644,16 +614,17 @@ function defaultData() {
   return fixData({ v: 1, settings: {}, people: [], items: presets() });
 }
 function fixData(d) {   // bổ sung các mục cài đặt còn thiếu (khi app được nâng cấp)
-  d.settings = Object.assign({ soon: 7, lockMin: 1, badge: false, icsYears: 10, icsTime: '07:00', icsShort: true, treeRows: 3 }, d.settings || {});
+  d.settings = Object.assign({ soon: 7, treeSoon: 30, lockMin: 1, badge: false, icsYears: 10, icsTime: '07:00', icsShort: true, treeRows: 3 }, d.settings || {});
   d.people = (d.people || []).map(p => Object.assign(newPerson(), p, { dead: !!p.death }));   // đã mất = có ngày mất
   d.items = d.items || [];
   return d;
 }
 
 /* =====================================================================
-   MÀN HÌNH MÃ PIN
-   showPin({title, sub, check, bio, cancel}) → trả về mã PIN đã nhập (hoặc null nếu bấm Hủy)
-   check(pin): trả về true nếu đúng, chuỗi thông báo nếu sai
+   MÀN HÌNH KHÓA
+   showPin({title, sub, check, cancel, pat}) → trả về mã đã nhập (hoặc null nếu bấm Hủy)
+   pat: true = vẽ hình (trả về "p" + số thứ tự các chấm), false = bàn phím 6 số (chỉ dùng cho mã PIN bản cũ)
+   check(code): trả về true nếu đúng, chuỗi thông báo nếu sai
    ===================================================================== */
 let pinState = null;
 function showPin(opt) {
@@ -663,27 +634,15 @@ function showPin(opt) {
     $('#pinS').textContent = opt.sub || '';
     $('#pinM').textContent = '';
     const L = $('#pinL');
-    L.disabled = !(opt.bio || opt.cancel);
-    L.className = 'fn' + (opt.bio ? ' bio' : '');
-    L.textContent = opt.bio ? '🙂' : 'Hủy';
-    L.title = opt.bio ? 'Mở bằng Face ID' : 'Hủy';
-    $('#pinX').hidden = !(opt.bio && opt.cancel);   // có nút Face ID thì nút Hủy nằm riêng bên dưới
-    pinDots();
-    const auto = !!(opt.bio && opt.autoBio);
-    pinMode(auto);   // mở app có Face ID: tự quét mặt trước, chưa hiện bàn phím
+    L.disabled = !opt.cancel;
+    L.className = 'fn';
+    L.textContent = 'Hủy';
+    $('#pinDots').hidden = $('#pinPad').hidden = !!opt.pat;
+    $('#pinPat').hidden = !opt.pat;
+    $('#pinX').hidden = !(opt.pat && opt.cancel);   // vẽ hình: nút Hủy nằm dưới khung vẽ
+    pinDots(); patReset();
     $('#pin').hidden = false;
-    if (auto) pinAutoBio();
   });
-}
-// Tự gọi Face ID: chỉ khi app đang hiện trên màn hình (app đang ở nền thì iOS từ chối ngay → đợi lúc mở lại app)
-function pinAutoBio() {
-  if (!document.hidden) setTimeout(pinBio, 400);
-}
-function pinMode(wait) {   // true: đang chờ Face ID (ẩn bàn phím), false: bàn phím nhập mã PIN
-  $('#pinDots').hidden = $('#pinPad').hidden = wait;
-  $('#pinUse').hidden = !wait;
-  $('#pinT').textContent = wait ? 'MyMemory đang khóa' : pinState.opt.title;
-  $('#pinS').textContent = wait ? '' : pinState.opt.sub || '';
 }
 function pinDots() { [...$('#pinDots').children].forEach((e, i) => e.classList.toggle('f', i < pinState.buf.length)); }
 function pinClose(val) { const s = pinState; pinState = null; $('#pin').hidden = true; s.resolve(val); }
@@ -692,34 +651,84 @@ function pinShake(msg) {
   $('#pinM').textContent = msg || '';
   if (navigator.vibrate) navigator.vibrate(150);
 }
-async function pinBio() {
+async function pinSubmit(code, onFail) {   // kiểm tra mã vừa nhập / hình vừa vẽ
   const s = pinState;
-  if (!s || s.busy || s.bioBusy || !s.opt.bio) return;
-  s.bioBusy = true;   // cờ riêng cho Face ID: đang chờ Face ID thì bàn phím mã PIN vẫn bấm được
-  const r = await s.opt.bio();
-  s.bioBusy = false;
-  if (pinState !== s) return;
-  if (r === true) pinClose('bio');
-  else { pinMode(false); $('#pinM').textContent = r || ''; }   // Face ID không được → chuyển sang nhập mã PIN
+  if (!s.opt.check) { setTimeout(() => pinClose(code), 120); return; }
+  s.busy = true;
+  const r = await s.opt.check(code);
+  s.busy = false;
+  if (r === true) pinClose(code);
+  else onFail(r);
 }
 async function pinKey(k) {
   const s = pinState;
-  if (!s || s.busy) return;
-  if (k === 'L') { if (s.opt.bio) pinBio(); else if (s.opt.cancel) pinClose(null); return; }
+  if (!s || s.busy || s.opt.pat) return;
+  if (k === 'L') { if (s.opt.cancel) pinClose(null); return; }
   if (k === 'B') { s.buf = s.buf.slice(0, -1); pinDots(); return; }
   if (s.buf.length >= 6) return;
   s.buf += k; pinDots();
   if (s.buf.length < 6) return;
-  if (!s.opt.check) { const v = s.buf; setTimeout(() => pinClose(v), 120); return; }
-  s.busy = true;
-  const r = await s.opt.check(s.buf);
-  s.busy = false;
-  if (r === true) pinClose(s.buf);
-  else { s.buf = ''; pinDots(); pinShake(r); }
+  pinSubmit(s.buf, r => { s.buf = ''; pinDots(); pinShake(r); });
 }
 $('#pinPad').addEventListener('click', e => { const b = e.target.closest('button'); if (b) pinKey(b.dataset.k); });
-$('#pinUse').onclick = () => { if (pinState) pinMode(false); };   // Face ID không hiện / bị treo: vẫn nhập mã PIN được
 $('#pinX').onclick = () => { if (pinState && !pinState.busy && pinState.opt.cancel) pinClose(null); };
+
+/* ----- Vẽ hình mở khóa: 9 chấm 3×3 (số thứ tự 0..8, từ trái sang phải, trên xuống dưới) ----- */
+const PAT_MIN = 4;    // phải nối ít nhất 4 chấm
+const patEl = $('#pinPat'), patSvg = $('#patSvg'), patDots = [...patEl.querySelectorAll('i')];
+const patXY = i => [44 + (i % 3) * 88, 44 + INT(i / 3) * 88];   // tọa độ tâm chấm trong khung 264×264
+patDots.forEach((d, i) => { const [x, y] = patXY(i); d.style.left = x + 'px'; d.style.top = y + 'px'; });
+let patSeq = [], patOn = false, patErrT = 0;
+function patDraw(fx, fy) {    // vẽ đường nối các chấm đã chọn (+ đoạn đang kéo tới ngón tay)
+  const pts = patSeq.map(patXY);
+  if (fx != null && pts.length) pts.push([fx, fy]);
+  patSvg.innerHTML = pts.length > 1 ? `<polyline points="${pts.map(p => p.join(',')).join(' ')}"/>` : '';
+  patDots.forEach((d, i) => d.classList.toggle('on', patSeq.includes(i)));
+}
+function patReset() { clearTimeout(patErrT); patSeq = []; patOn = false; patEl.classList.remove('err', 'shake'); patDraw(); }
+function patPos(e) { const r = patEl.getBoundingClientRect(); return [(e.clientX - r.left) * 264 / r.width, (e.clientY - r.top) * 264 / r.height]; }
+function patAdd(i) {
+  // kéo thẳng qua 1 chấm ở giữa (ví dụ 0 → 2): chấm giữa cũng được tính
+  const j = patSeq[patSeq.length - 1];
+  if (j != null && (j % 3 + i % 3) % 2 === 0 && (INT(j / 3) + INT(i / 3)) % 2 === 0) {
+    const m = (j + i) / 2;
+    if (!patSeq.includes(m)) patSeq.push(m);
+  }
+  patSeq.push(i);
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+function patMove(e) {
+  const [x, y] = patPos(e);
+  for (let i = 0; i < 9; i++) {
+    const [cx, cy] = patXY(i);
+    if (!patSeq.includes(i) && Math.hypot(x - cx, y - cy) < 32) patAdd(i);
+  }
+  patDraw(x, y);
+}
+function patFail(msg) {
+  patEl.classList.add('err'); patEl.classList.remove('shake'); void patEl.offsetWidth; patEl.classList.add('shake');
+  $('#pinM').textContent = msg || '';
+  if (navigator.vibrate) navigator.vibrate(150);
+  patErrT = setTimeout(() => { if (!patOn) { patSeq = []; patEl.classList.remove('err'); patDraw(); } }, 900);
+}
+patEl.addEventListener('pointerdown', e => {
+  if (!pinState || pinState.busy || !pinState.opt.pat) return;
+  e.preventDefault();
+  patReset(); patOn = true; $('#pinM').textContent = '';
+  try { patEl.setPointerCapture(e.pointerId); } catch (err) {}
+  patMove(e);
+});
+patEl.addEventListener('pointermove', e => { if (patOn) { e.preventDefault(); patMove(e); } });
+const patEnd = () => {
+  if (!patOn) return;
+  patOn = false; patDraw();
+  if (!patSeq.length || !pinState) return;
+  if (patSeq.length < PAT_MIN) return patFail(`Nối ít nhất ${PAT_MIN} chấm.`);
+  pinSubmit('p' + patSeq.join(''), patFail);
+};
+patEl.addEventListener('pointerup', patEnd);
+patEl.addEventListener('pointercancel', patEnd);
+
 document.addEventListener('keydown', e => {
   if (!pinState) return;
   if (/^[0-9]$/.test(e.key)) pinKey(e.key);
@@ -735,35 +744,43 @@ async function checkUnlock(pin) {
     f.n++;
     if (f.n >= 5) { f.until = Date.now() + 30000 * Math.pow(2, Math.min(f.n - 5, 5)); }
     setFail(f);
-    return f.n >= 5 ? `Sai mã PIN. Thử lại sau ${Math.round((f.until - Date.now()) / 1000)} giây.` : `Sai mã PIN (còn ${5 - f.n} lần thử).`;
+    const S = 'Sai ' + secName();
+    return f.n >= 5 ? `${S}. Thử lại sau ${Math.round((f.until - Date.now()) / 1000)} giây.` : `${S} (còn ${5 - f.n} lần thử).`;
   }
   await openWith(raw);
   setFail({ n: 0, until: 0 });
   return true;
 }
-async function askNewPin(title) {      // nhập mã mới 2 lần; trả về mã PIN hoặc null
+async function askNewPat(title, cancel) {      // vẽ hình mới 2 lần; trả về mã hình vẽ hoặc null (bấm Hủy)
   for (;;) {
-    const p1 = await showPin({ title, sub: 'Nhập 6 số. Quên mã PIN là không mở được dữ liệu.', cancel: !!vault && !!data });
+    const p1 = await showPin({ pat: true, title, sub: `Nối ít nhất ${PAT_MIN} chấm. Quên hình vẽ là không mở được dữ liệu.`, cancel });
     if (p1 == null) return null;
-    const p2 = await showPin({ title: 'Nhập lại mã PIN', sub: 'Nhập lại để xác nhận', cancel: true });
+    const p2 = await showPin({ pat: true, title: 'Vẽ lại hình', sub: 'Vẽ lại để xác nhận', cancel: true });
     if (p2 === p1) return p1;
-    if (p2 != null) toast('Hai lần nhập không giống nhau. Nhập lại từ đầu.');
+    if (p2 != null) toast('Hai lần vẽ không giống nhau. Vẽ lại từ đầu.');
   }
 }
 
 async function start() {
   vault = loadVault();
   if (!vault) {
-    const pin = await askNewPin('Tạo mã PIN 6 số');
-    await createVault(pin);
+    const code = await askNewPat('Tạo hình vẽ mở khóa', false);
+    await createVault(code);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     enterApp();
-    if (await bioAvailable() && confirm('Bật mở khóa bằng Face ID?')) {
-      try { await enableBio(); toast('Đã bật Face ID'); } catch (e) { alert(bioErr(e)); }
-    }
     return;
   }
-  await showPin({ title: 'Nhập mã PIN', sub: 'MyMemory đang khóa', check: checkUnlock, bio: vault.bio ? unlockBio : null, autoBio: true });
+  if (vault.k !== 'pat') {
+    // bản cũ khóa bằng mã PIN: nhập mã PIN lần cuối rồi đổi sang hình vẽ
+    await showPin({ title: 'Nhập mã PIN cũ', sub: 'Lần cuối – sau đó mở khóa bằng hình vẽ', check: checkUnlock });
+    let code = null;
+    while (!code) code = await askNewPat('Vẽ hình mở khóa mới', false);
+    await setSecret(code);
+    enterApp();
+    toast('Từ nay mở khóa bằng hình vẽ');
+    return;
+  }
+  await showPin({ pat: true, title: 'MyMemory đang khóa', sub: 'Vẽ hình để mở khóa', check: checkUnlock });
   enterApp();
 }
 function lock() {
@@ -785,7 +802,7 @@ document.addEventListener('visibilitychange', () => {
   } else if (!locked && data) {
     if (Date.now() - hiddenAt > data.settings.lockMin * 60000) lock();
     else if (tab === 'up') render();     // ngày có thể đã sang ngày mới
-  } else if (locked && pinState && pinState.opt.autoBio) pinAutoBio();   // mở lại app khi đang khóa: gọi Face ID lại
+  }
 });
 
 /* =====================================================================
@@ -996,13 +1013,17 @@ function viewTree(today) {
     return `<div class="card" style="margin-top:12px"><b>Chưa có ai trong sơ đồ</b><p class="muted">${howTo}
       Sơ đồ có 3 hàng: 👴 Bố mẹ, 👫 Anh chị em (cả vợ/chồng), 👶 Con cháu. Đánh dấu "Người này là tôi" để ô của anh có viền xanh.</p></div>`;
   }
-  const occ = new Map();   // người đang có sinh nhật / ngày giỗ sắp đến
-  for (const o of allOcc(today)) if (o.src.p && o.days <= o.soon && !occ.has(o.src.p.id)) occ.set(o.src.p.id, o);
+  // sinh nhật / ngày giỗ trong vòng N ngày (ô "Sơ đồ: báo trước" trong Cài đặt): hiện dưới tên trong sơ đồ + khung "Sắp đến" bên dưới
+  const N = data.settings.treeSoon, near = allOcc(today).filter(o => o.src.p && o.days <= N);
+  near.forEach(o => { o.cls = o.days === 0 ? 'today' : o.days <= 3 ? 'near' : 'soon'; });
+  const occ = new Map();
+  for (const o of near) if (!occ.has(o.src.p.id)) occ.set(o.src.p.id, o);
   const roots = sortP(data.people.filter(p => isHead(p, T) && !(p.par && T.byId.has(p.par)))).sort((a, b) => T.lv.get(a.id) - T.lv.get(b.id));
   // tree-out: khung cuộn ngang; tree-box: kích thước sau khi phóng to/thu nhỏ; tree-wrap: sơ đồ kích thước gốc (fitTree() tính tỉ lệ)
   // min-height: hàng con cháu xếp nhiều dòng thì sơ đồ tự cao thêm
   let h = `<div class="tree-out"><div class="tree-box"><div class="tree-wrap" style="min-height:${rows * TP - TP + TL + TC + 8}px;padding-bottom:8px">`;
   h += `<div class="tree">` + roots.map(r => `<div style="margin-top:${TL + (T.lv.get(r.id) - 1) * TP}px">${unitHtml(r, T, occ)}</div>`).join('') + `</div></div></div></div>`;
+  if (near.length) h += `<h2 class="sec">⏰ Sắp đến</h2>` + near.map(evCard).join('');
   const un = data.people.filter(p => T.lv.get(p.id) == null);
   if (un.length) h += `<h2 class="sec">Chưa xếp vào sơ đồ</h2>` + un.map(p => personRow(p, today, true)).join('');
   return h;
@@ -1438,6 +1459,9 @@ function viewSet() {
     <label class="f"><span class="l">Báo "sắp đến" trước bao nhiêu ngày (cài đặt chung)</span>
       <input class="inp" id="sSoon" inputmode="numeric" maxlength="3" value="${s.soon}"></label>
     <div class="muted small">Mỗi ngày có thể đặt riêng số ngày báo trước trong màn hình sửa.</div>
+    <label class="f"><span class="l">Sơ đồ: báo trước bao nhiêu ngày</span>
+      <input class="inp" id="sTreeSoon" inputmode="numeric" maxlength="3" value="${s.treeSoon}"></label>
+    <div class="muted small">Sinh nhật / ngày giỗ trong số ngày này hiện ở khung "⏰ Sắp đến" dưới sơ đồ gia đình.</div>
     <div class="line"><span>Hiện số trên icon app</span><input type="checkbox" class="sw" id="sBadge"${s.badge ? ' checked' : ''}></div>
     <div class="muted small">Số trên icon = số ngày đang "sắp đến". Chỉ cập nhật khi mở app. Cần cài app vào màn hình chính và cho phép thông báo.</div>
   </div>
@@ -1447,16 +1471,15 @@ function viewSet() {
     <label class="f"><span class="l">Giờ báo</span><input class="inp" type="time" id="sIcsT" value="${esc(s.icsTime)}"></label>
     <label class="chk"><input type="checkbox" id="sIcsS"${s.icsShort ? ' checked' : ''}> Không ghi phần ghi chú vào Lịch (an toàn hơn)</label>
     <button class="btn primary block" id="sIcs">📤 Tạo file lịch</button>
-    <div class="muted small" style="margin-top:6px">⚠️ App Lịch không có mã PIN: ai mở được iPhone thì xem được các sự kiện này.</div>
+    <div class="muted small" style="margin-top:6px">⚠️ App Lịch không có khóa như MyMemory: ai mở được iPhone thì xem được các sự kiện này.</div>
   </div>
   <div class="grp"><h3>🔒 Bảo mật</h3>
     <label class="f"><span class="l">Tự khóa app</span><select class="inp" id="sLock">${lockOpt.map(([v, t]) => `<option value="${v}"${v === s.lockMin ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
-    <div class="line"><span>Mở khóa bằng Face ID</span><input type="checkbox" class="sw" id="sBio"${vault.bio ? ' checked' : ''}></div>
-    <button class="btn block" id="sPin">🔑 Đổi mã PIN</button>
+    <button class="btn block" id="sPin">🔑 Đổi hình vẽ mở khóa</button>
     <button class="btn block" id="sLockNow">🔒 Khóa ngay</button>
   </div>
   <div class="grp"><h3>💾 Sao lưu</h3>
-    <div class="muted small">File sao lưu được mã hóa bằng mã PIN hiện tại. Khôi phục cần đúng mã PIN lúc sao lưu. Nên lưu vào iCloud Drive (app <b>Tệp</b>).</div>
+    <div class="muted small">File sao lưu được mã hóa bằng hình vẽ hiện tại. Khôi phục cần vẽ đúng hình lúc sao lưu (file sao lưu cũ: nhập mã PIN cũ). Nên lưu vào iCloud Drive (app <b>Tệp</b>).</div>
     <button class="btn block" id="sBak">📤 Sao lưu ra file</button>
     <button class="btn block" id="sRes">📥 Khôi phục từ file</button>
     <input type="file" id="sFile" accept=".json,application/json" hidden>
@@ -1467,7 +1490,8 @@ function viewSet() {
 function bindSet() {
   const s = data.settings;
   $('#sSoon').onchange = async e => { const v = parseInt(e.target.value, 10); s.soon = isNaN(v) ? 7 : Math.min(365, Math.max(0, v)); e.target.value = s.soon; await save(); toast('Đã lưu'); };
-  $('#sLock').onchange = async e => { s.lockMin = +e.target.value; await save(); toast('Đã lưu'); };
+  $('#sTreeSoon').onchange = async e => { const v = parseInt(e.target.value, 10); s.treeSoon = isNaN(v) ? 30 : Math.min(365, Math.max(0, v)); e.target.value = s.treeSoon; await save(); toast('Đã lưu'); };
+  $('#sLock').onchange =async e => { s.lockMin = +e.target.value; await save(); toast('Đã lưu'); };
   $('#sIcsY').onchange = async e => { s.icsYears = +e.target.value; await save(); };
   $('#sIcsT').onchange = async e => { s.icsTime = e.target.value || '07:00'; await save(); };
   $('#sIcsS').onchange = async e => { s.icsShort = e.target.checked; await save(); };
@@ -1482,15 +1506,6 @@ function bindSet() {
     s.badge = e.target.checked; await save();
     if (!s.badge && navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
   };
-  $('#sBio').onchange = async e => {
-    if (e.target.checked) {
-      if (!await bioAvailable()) { e.target.checked = false; return alert('iPhone này không dùng được Face ID cho web app.'); }
-      try { await enableBio(); toast('Đã bật Face ID'); } catch (err) { e.target.checked = false; alert(bioErr(err)); }
-    } else {
-      if (!confirm('Tắt mở khóa bằng Face ID?')) { e.target.checked = true; return; }
-      vault.bio = null; saveVault(); toast('Đã tắt Face ID');
-    }
-  };
   $('#sPin').onclick = changePin;
   $('#sLockNow').onclick = () => lock();
   $('#sIcs').onclick = exportIcs;
@@ -1498,34 +1513,20 @@ function bindSet() {
   $('#sRes').onclick = () => $('#sFile').click();
   $('#sFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restore(f); };
   $('#sWipe').onclick = async () => {
-    const t = prompt('Xóa toàn bộ dữ liệu và mã PIN. Không khôi phục được (trừ khi có file sao lưu).\nGõ chữ XOA để xác nhận:');
+    const t = prompt('Xóa toàn bộ dữ liệu và hình vẽ mở khóa. Không khôi phục được (trừ khi có file sao lưu).\nGõ chữ XOA để xác nhận:');
     if (t !== 'XOA') return;
     localStorage.removeItem(LS_VAULT); localStorage.removeItem(LS_FAIL);
     if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
     location.reload();
   };
 }
-// Xác nhận bằng Face ID (không mở khóa lại, chỉ kiểm tra đúng chủ máy) – dùng khi quên mã PIN
-async function verifyBio() {
-  try {
-    const out = await bioGet(unb64(vault.bio.id), unb64(vault.bio.salt));
-    if (!out) return 'Không lấy được khóa từ Face ID.';
-    await aesDec(await bioKek(out), vault.bio.w);   // giải được = đúng Face ID của máy này
-    return true;
-  } catch (e) { return bioErr(e); }
-}
-async function changePin() {
-  // xác nhận bằng mã PIN hiện tại, hoặc Face ID (nếu đã bật) khi quên mã PIN
-  const old = await showPin({ title: 'Nhập mã PIN hiện tại', sub: vault.bio ? 'Quên mã PIN: bấm 🙂 để xác nhận bằng Face ID' : '',
-    cancel: true, bio: vault.bio ? verifyBio : null, check: async p => (await tryPin(p)) ? true : 'Sai mã PIN.' });
+async function changePin() {   // đổi hình vẽ: vẽ hình hiện tại → vẽ hình mới 2 lần
+  const old = await showPin({ pat: true, title: 'Vẽ hình hiện tại', cancel: true, check: async p => (await tryPin(p)) ? true : 'Sai hình vẽ.' });
   if (old == null) return;
-  const pin = await askNewPin('Nhập mã PIN mới');
-  if (pin == null) return;
-  const salt = rand(16);
-  vault.salt = b64(salt); vault.iter = ITER;
-  vault.w = await aesEnc(await pinKek(pin, salt, ITER), rawKey);
-  saveVault();
-  toast('Đã đổi mã PIN');
+  const code = await askNewPat('Vẽ hình mới', true);
+  if (code == null) return;
+  await setSecret(code);
+  toast('Đã đổi hình vẽ');
 }
 
 /* ----- Lưu file (sao lưu, lịch) ----- */
@@ -1542,7 +1543,7 @@ async function shareFile(name, text, type) {
 function ymd(jd) { const [d, m, y] = jdToDate(jd); return `${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}`; }
 async function backup() {
   const [d, m, y] = jdToDate(todayJd());
-  const bak = { app: 'MyMemory', v: 1, created: new Date().toISOString(), salt: vault.salt, iter: vault.iter, w: vault.w, data: vault.data };
+  const bak = { app: 'MyMemory', v: 1, created: new Date().toISOString(), k: vault.k, salt: vault.salt, iter: vault.iter, w: vault.w, data: vault.data };
   await shareFile(`MyMemory-${y}${String(m).padStart(2, '0')}${String(d).padStart(2, '0')}.json`, JSON.stringify(bak), 'application/json');
 }
 async function restore(file) {
@@ -1550,12 +1551,14 @@ async function restore(file) {
   try { bak = JSON.parse(await file.text()); } catch (e) { return alert('File không đúng định dạng.'); }
   if (!bak || bak.app !== 'MyMemory' || !bak.w || !bak.data) return alert('Đây không phải file sao lưu của MyMemory.');
   let got = null;
-  const pin = await showPin({ title: 'Mã PIN của bản sao lưu', sub: 'Nhập mã PIN lúc tạo bản sao lưu', cancel: true, check: async p => {
+  const pat = bak.k === 'pat';   // file sao lưu cũ (không có k): khóa bằng mã PIN
+  const pin = await showPin({ pat, title: pat ? 'Hình vẽ của bản sao lưu' : 'Mã PIN của bản sao lưu',
+    sub: pat ? 'Vẽ hình mở khóa lúc tạo bản sao lưu' : 'Nhập mã PIN lúc tạo bản sao lưu', cancel: true, check: async p => {
     try {
       const raw = await aesDec(await pinKek(p, unb64(bak.salt), bak.iter), bak.w);
       got = fixData(JSON.parse(td.decode(await aesDec(await importData(raw), bak.data))));
       return true;
-    } catch (e) { return 'Sai mã PIN.'; }
+    } catch (e) { return pat ? 'Sai hình vẽ.' : 'Sai mã PIN.'; }
   } });
   if (pin == null || !got) return;
   if (!confirm(`Bản sao lưu có ${got.people.length} người, ${got.items.length} ngày lễ.\nThay toàn bộ dữ liệu hiện tại bằng bản này?`)) return;
